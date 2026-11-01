@@ -7,7 +7,7 @@
 よく使う文章・コマンド・ID やパスワードを登録しておき、クリック（スマホはタップ）だけでコピーできる道具です。
 
 - 使う：**https://snippet.eiwa-up.jp/**
-- マニュアル：[docs/manual-V2.00.002.pdf](docs/manual-V2.00.002.pdf)（Version 2.00.003 でも使い方は同じです）
+- マニュアル：[docs/manual-V2.00.003.pdf](docs/manual-V2.00.003.pdf)
 - 現行版：**Version 2.00.003**
 
 > A small, single-file web app to store and copy text snippets and credentials. Everything stays in your browser, encrypted with a random key that is wrapped by a passkey (WebAuthn PRF) and by a recovery key. Your data is never sent anywhere, and the page loads nothing from other sites.

@@ -27,5 +27,9 @@ app/icon-192.png, app/icon-512.png, app/icon-maskable-512.png, docs/icon-512.png
 and the mark they are based on are NOT licensed under the MIT License.
 All rights reserved by EIWA.
 
+The font files in app/fonts/ (IBM Plex Mono, Copyright 2017 IBM Corp.) are licensed
+under the SIL Open Font License, Version 1.1 (see app/fonts/OFL.txt), not the MIT License.
+
 （日本語の要約）プログラムは MIT ライセンスで、自由に使い・直し・配れます（著作権表示とこの文を残すこと、無保証）。
 ただし、アプリのアイコンと、その元になったマークは MIT の対象外で、無断で使うことはできません。
+app/fonts/ の文字の形（IBM Plex Mono）は SIL Open Font License 1.1 です（app/fonts/OFL.txt）。

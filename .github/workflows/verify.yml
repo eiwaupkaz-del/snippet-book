@@ -1,0 +1,44 @@
+# スニペット帳の確かめ
+# 1. tests：鍵のしくみのテストと、リポジトリのファイルが SHA256SUMS と一致するか
+# 2. live：https://snippet.eiwa-up.jp/ で配っている中身が、このリポジトリと同じか（毎日1回）
+name: verify
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: '17 0 * * *'   # 毎日 9:17（日本時間）
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: 鍵のしくみのテスト
+        run: node tests/test-core.mjs
+      - name: リポジトリのファイルが SHA256SUMS と一致するか
+        working-directory: app
+        run: sha256sum -c SHA256SUMS
+
+  live:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 公開中のサイトの中身が、このリポジトリと同じか
+        run: |
+          set -eu
+          mkdir live
+          for f in $(awk '{print $2}' app/SHA256SUMS); do
+            url="https://snippet.eiwa-up.jp/$f"
+            [ "$f" = "snippet-book.html" ] && url="https://snippet.eiwa-up.jp/"
+            curl -fsS --max-time 30 -o "live/$f" "$url"
+          done
+          cd live
+          sha256sum -c ../app/SHA256SUMS

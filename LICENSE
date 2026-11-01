@@ -1,0 +1,31 @@
+MIT License
+
+Copyright (c) 2026 EIWA
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+Exception: the app icon files (app/apple-touch-icon.png, app/favicon-32.png,
+app/icon-192.png, app/icon-512.png, app/icon-maskable-512.png, docs/icon-512.png)
+and the mark they are based on are NOT licensed under the MIT License.
+All rights reserved by EIWA.
+
+（日本語の要約）プログラムは MIT ライセンスで、自由に使い・直し・配れます（著作権表示とこの文を残すこと、無保証）。
+ただし、アプリのアイコンと、その元になったマークは MIT の対象外で、無断で使うことはできません。

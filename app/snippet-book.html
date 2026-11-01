@@ -1,0 +1,1943 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="スニペット帳">
+<meta name="theme-color" content="#E7EAE6">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+JP:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --paper:#E7EAE6; --card:#F6F7F4; --ink:#16211C; --ink-soft:#5C6B63;
+    --rule:#C6CDC5; --brass:#A8762C; --seal:#9C3B2E; --focus:#2E6F70;
+    --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+    --sans:"IBM Plex Sans JP",-apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink); font-family:var(--sans); font-size:13px; line-height:1.5; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:720px; margin:0 auto; padding:20px 14px 64px; }
+  .hidden { display:none !important; }
+
+  /* ---------- lock screen ---------- */
+  .lock { max-width:440px; margin:8vh auto 0; padding:0 16px; }
+  .lock h1 { font-family:var(--mono); font-size:17px; font-weight:600; margin:0 0 2px; }
+  .lock .subtitle { font-family:var(--mono); font-size:10px; color:var(--ink-soft); letter-spacing:.06em; margin:0 0 22px; }
+  .lock-card { background:var(--card); border:1px solid var(--rule); border-radius:3px; padding:20px; }
+  .lock-card h2 { font-size:13px; margin:0 0 4px; }
+  .lock-card p { font-size:11.5px; color:var(--ink-soft); margin:0 0 14px; }
+  .lock-field {
+    width:100%; font:inherit; font-family:var(--mono); font-size:13px;
+    padding:8px 10px; border:1px solid var(--rule); border-radius:2px;
+    background:var(--paper); color:var(--ink); margin-bottom:10px;
+  }
+  .lock-field:focus { outline:2px solid var(--focus); outline-offset:-1px; }
+  .lock-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .lock-err { color:var(--seal); font-size:11.5px; min-height:16px; margin:6px 0 0; font-family:var(--mono); }
+  .gen-box { background:var(--paper); border:1px dashed var(--rule); border-radius:2px; padding:10px; margin:12px 0; }
+  .gen-top { display:flex; align-items:center; gap:8px; }
+  .gen-box .pass { font-family:var(--mono); font-size:14px; font-weight:600; word-break:break-all; color:var(--ink); flex:1; }
+  .gen-copy { font:inherit; font-size:10.5px; font-family:var(--mono); padding:3px 10px; border:1px solid var(--rule); border-radius:2px; background:var(--card); color:var(--ink-soft); cursor:pointer; flex:none; white-space:nowrap; }
+  .gen-copy:hover { border-color:var(--ink); color:var(--ink); }
+  .gen-copy:focus-visible { outline:2px solid var(--focus); }
+  .gen-copy.done { color:var(--focus); border-color:var(--focus); }
+  .gen-box .cap { font-size:10.5px; color:var(--ink-soft); margin-top:6px; }
+  .strength { height:4px; border-radius:2px; background:var(--rule); margin:8px 0 4px; overflow:hidden; }
+  .strength > i { display:block; height:100%; width:0; background:var(--seal); transition:width .2s, background .2s; }
+  .warn-block { background:rgba(156,59,46,.06); border-left:3px solid var(--seal); padding:10px 12px; margin:14px 0 0; font-size:11px; color:var(--ink-soft); border-radius:0 2px 2px 0; }
+  .warn-block strong { color:var(--seal); }
+  .restore-box { border:1px dashed var(--rule); border-radius:2px; padding:10px 12px; margin:0 0 10px; background:var(--paper); }
+  .restore-head { font-size:11px; font-weight:600; color:var(--ink-soft); margin-bottom:4px; }
+  .restore-note { font-size:10.5px; color:var(--ink-soft); margin:0 0 8px; line-height:1.5; }
+  .restore-file { font-family:var(--mono); font-size:10.5px; color:var(--ink-soft); word-break:break-all; align-self:center; }
+  .restore-file.set { color:var(--focus); }
+  .ios-tip { background:rgba(46,111,112,.08); border:1px solid var(--focus); border-radius:3px; padding:12px 14px; margin:0 0 16px; font-size:12px; color:var(--ink); }
+  .ios-tip strong { display:block; margin-bottom:4px; }
+  .ios-tip p { margin:0 0 8px; font-size:11.5px; color:var(--ink-soft); line-height:1.6; }
+  .ios-tip b { color:var(--ink); }
+  .share-ico { display:inline-block; border:1px solid var(--ink-soft); border-radius:3px; padding:0 4px; font-size:10px; }
+  .tip-close { font:inherit; font-size:11px; padding:3px 10px; border:1px solid var(--rule); border-radius:2px; background:var(--card); color:var(--ink-soft); cursor:pointer; }
+  /* backup reminder banner (main screen) */
+  .backup-banner { display:none; align-items:center; gap:10px; flex-wrap:wrap; background:rgba(168,118,44,.10); border:1px solid var(--brass); border-radius:3px; padding:9px 12px; margin:0 0 12px; font-size:11.5px; color:var(--ink); }
+  .backup-banner.show { display:flex; }
+  .backup-banner .msg { flex:1; min-width:180px; color:var(--ink-soft); }
+  .backup-banner .msg b { color:var(--brass); }
+  .backup-banner button { font:inherit; font-size:11.5px; font-weight:500; padding:6px 12px; border:1px solid var(--brass); border-radius:2px; background:var(--brass); color:#fff; cursor:pointer; white-space:nowrap; }
+
+  header { display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end; justify-content:space-between; padding-bottom:10px; border-bottom:1.5px solid var(--ink); }
+  h1 { margin:0; font-family:var(--mono); font-size:15px; font-weight:600; letter-spacing:-.01em; }
+  .title-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .data-name { font-family:var(--mono); font-size:12px; padding:2px 8px; border:1px solid var(--rule); border-radius:2px; background:var(--card); color:var(--ink); width:150px; }
+  .data-name:focus { outline:2px solid var(--focus); outline-offset:-1px; }
+  .data-name::placeholder { color:var(--ink-soft); }
+  .subtitle { margin:2px 0 0; font-size:9.5px; color:var(--ink-soft); font-family:var(--mono); letter-spacing:.06em; }
+  .head-tools { display:flex; gap:6px; align-items:center; }
+
+  .switch { display:inline-flex; border:1px solid var(--ink); border-radius:2px; overflow:hidden; background:var(--card); }
+  .switch button { font:inherit; font-size:11.5px; font-weight:500; padding:4px 12px; border:0; background:transparent; color:var(--ink-soft); cursor:pointer; transition:background .15s,color .15s; }
+  .switch button[aria-pressed="true"] { background:var(--ink); color:var(--card); }
+  .switch button:focus-visible { outline:2px solid var(--focus); outline-offset:-3px; }
+  .lock-btn { font:inherit; font-size:11.5px; padding:4px 10px; border:1px solid var(--rule); border-radius:2px; background:var(--card); color:var(--ink-soft); cursor:pointer; }
+  .lock-btn:hover { border-color:var(--ink); color:var(--ink); }
+
+  .sets { display:flex; align-items:center; gap:4px; margin:12px 0 2px; flex-wrap:wrap; }
+  .set-tab { font:inherit; font-size:11.5px; font-weight:500; padding:4px 11px; border:1px solid var(--rule); border-bottom:none; border-radius:3px 3px 0 0; background:rgba(22,33,28,.03); color:var(--ink-soft); cursor:pointer; position:relative; top:1px; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .set-tab:hover { color:var(--ink); }
+  .set-tab[aria-selected="true"] { background:var(--card); color:var(--ink); border-color:var(--ink); border-bottom:1px solid var(--card); }
+  .set-tab:focus-visible { outline:2px solid var(--focus); outline-offset:-2px; }
+  .set-add { font:inherit; font-size:14px; line-height:1; width:24px; height:24px; padding:0; border:1px dashed var(--rule); border-radius:3px; background:transparent; color:var(--ink-soft); cursor:pointer; }
+  .set-add:hover { color:var(--ink); border-color:var(--ink); }
+  .sets-rule { border:0; border-top:1px solid var(--ink); margin:0 0 12px; }
+
+  .toolbar { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:0 0 5px; }
+  .search { flex:1; min-width:140px; font:inherit; font-size:12px; padding:5px 9px; background:var(--card); border:1px solid var(--rule); border-radius:2px; color:var(--ink); }
+  .search:focus { outline:2px solid var(--focus); outline-offset:-1px; }
+  .search::placeholder { color:var(--ink-soft); }
+
+  .btn { font:inherit; font-size:11.5px; font-weight:500; padding:5px 10px; background:var(--card); color:var(--ink); border:1px solid var(--rule); border-radius:2px; cursor:pointer; transition:border-color .15s; white-space:nowrap; }
+  .btn:hover { border-color:var(--ink); }
+  .btn:focus-visible { outline:2px solid var(--focus); outline-offset:1px; }
+  .btn-primary { background:var(--ink); color:var(--card); border-color:var(--ink); }
+  .btn-quiet { color:var(--ink-soft); border-color:transparent; background:transparent; }
+  .btn-quiet:hover { color:var(--seal); }
+
+  .hint { font-family:var(--mono); font-size:10px; color:var(--ink-soft); letter-spacing:.02em; margin:0 0 12px; }
+  kbd { font-family:var(--mono); font-size:9.5px; border:1px solid var(--rule); border-bottom-width:2px; border-radius:2px; padding:0 3px; background:var(--card); }
+
+  .cards { display:flex; flex-direction:column; gap:6px; }
+  .card { position:relative; display:grid; grid-template-columns:30px 1fr auto; background:var(--card); border:1px solid var(--rule); border-radius:2px; }
+  .card.secret { border-left:3px solid var(--seal); }
+  .tab { display:flex; align-items:center; justify-content:center; border-right:1px solid var(--rule); background:linear-gradient(180deg,rgba(168,118,44,.10),rgba(168,118,44,.03)); font-family:var(--mono); font-size:11.5px; font-weight:600; color:var(--brass); user-select:none; }
+  .card.nokey .tab { color:var(--ink-soft); background:rgba(22,33,28,.03); }
+  .card.secret .tab { background:linear-gradient(180deg,rgba(156,59,46,.10),rgba(156,59,46,.03)); color:var(--seal); }
+
+  .body { padding:6px 9px; min-width:0; }
+  .label { font-size:10px; font-weight:600; color:var(--ink-soft); letter-spacing:.02em; margin-bottom:2px; display:flex; align-items:center; gap:5px; }
+  .badge { font-family:var(--mono); font-size:8.5px; font-weight:600; color:var(--seal); border:1px solid currentColor; border-radius:2px; padding:0 3px; letter-spacing:.04em; }
+  .badge.saved { color:var(--brass); }
+  .snippet { font-family:var(--mono); font-size:11.5px; white-space:pre-wrap; word-break:break-all; margin:0; color:var(--ink); }
+  .snippet.masked { color:var(--ink-soft); letter-spacing:.12em; }
+  .snippet.unset { color:var(--seal); font-style:italic; letter-spacing:0; }
+
+  /* credential (ID + PW) rows in copy mode */
+  .cred { display:flex; flex-direction:column; gap:3px; }
+  .cred-row { display:flex; align-items:center; gap:6px; }
+  .cred-row .k { font-family:var(--mono); font-size:9px; color:var(--ink-soft); width:26px; flex:none; }
+  .cred-row .v { font-family:var(--mono); font-size:11.5px; color:var(--ink); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .cred-row .v.masked { color:var(--ink-soft); letter-spacing:.12em; }
+  .cred-copy { font:inherit; font-size:9.5px; font-family:var(--mono); padding:1px 7px; border:1px solid var(--rule); border-radius:2px; background:var(--paper); color:var(--ink-soft); cursor:pointer; flex:none; }
+  .cred-copy:hover { border-color:var(--ink); color:var(--ink); }
+  .cred-copy:focus-visible { outline:2px solid var(--focus); }
+
+  .mode-copy .card .body.plainrow { cursor:pointer; transition:background .12s; }
+  .mode-copy .card .body.plainrow:hover { background:rgba(46,111,112,.07); }
+  .mode-copy .card .body.plainrow:focus-visible { outline:2px solid var(--focus); outline-offset:-2px; }
+
+  .actions { display:flex; align-items:center; gap:1px; padding:0 5px 0 2px; }
+  .icon { font-family:var(--mono); font-size:11px; width:22px; height:22px; line-height:1; display:flex; align-items:center; justify-content:center; border:0; border-radius:2px; background:transparent; color:var(--ink-soft); cursor:pointer; }
+  .icon:hover { background:rgba(22,33,28,.07); color:var(--ink); }
+  .icon:focus-visible { outline:2px solid var(--focus); }
+  .icon.danger:hover { color:var(--seal); }
+  .icon[disabled] { opacity:.25; cursor:default; }
+  .icon[disabled]:hover { background:transparent; }
+
+  .field { font:inherit; width:100%; border:1px dashed var(--rule); border-radius:2px; background:transparent; color:var(--ink); padding:2px 4px; }
+  .field:focus { outline:2px solid var(--focus); outline-offset:-1px; border-color:transparent; }
+  .field.title { font-size:10px; font-weight:600; color:var(--ink-soft); margin-bottom:3px; }
+  .field.text { font-family:var(--mono); font-size:11.5px; resize:vertical; min-height:32px; }
+  .field.user { font-family:var(--mono); font-size:11.5px; margin-bottom:4px; }
+
+  .opts { display:flex; flex-wrap:wrap; gap:12px; margin-top:4px; font-size:10px; color:var(--ink-soft); }
+  .opts label { display:inline-flex; align-items:center; gap:4px; cursor:pointer; }
+  .opts input { margin:0; accent-color:var(--seal); }
+  .opts .risk { color:var(--seal); font-weight:600; }
+  .subfield-label { font-size:9px; color:var(--ink-soft); margin:2px 0 1px; font-family:var(--mono); letter-spacing:.03em; }
+
+  .seal-stamp { position:absolute; top:50%; right:12px; transform:translateY(-50%) rotate(-14deg) scale(.6); border:1.5px solid var(--seal); color:var(--seal); border-radius:2px; font-family:var(--mono); font-size:9px; font-weight:600; letter-spacing:.06em; padding:1px 5px; opacity:0; pointer-events:none; }
+  .card.stamped .seal-stamp { animation:press .9s ease-out; }
+  @keyframes press { 0%{opacity:0;transform:translateY(-50%) rotate(-14deg) scale(1.5);} 12%{opacity:.95;transform:translateY(-50%) rotate(-14deg) scale(1);} 70%{opacity:.95;} 100%{opacity:0;} }
+  @media (prefers-reduced-motion:reduce){ .card.stamped .seal-stamp{ animation:none; opacity:.95; } }
+
+  .empty { border:1px dashed var(--rule); border-radius:2px; padding:24px 14px; text-align:center; color:var(--ink-soft); font-size:12px; }
+  .empty p { margin:0 0 8px; } .empty p:last-child { margin:0; }
+  .status { font-family:var(--mono); font-size:10px; color:var(--ink-soft); margin:10px 0 0; }
+  .status.error { color:var(--seal); }
+
+  footer { margin-top:24px; padding-top:10px; border-top:1px solid var(--rule); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; }
+  .footer-tools { display:flex; gap:6px; flex-wrap:wrap; }
+  .warn { font-size:10.5px; color:var(--ink-soft); max-width:100%; margin:8px 0 0; flex-basis:100%; }
+  .warn strong { color:var(--seal); font-weight:600; }
+
+  .toast { position:fixed; left:50%; bottom:20px; transform:translateX(-50%) translateY(12px); background:var(--ink); color:var(--card); font-family:var(--mono); font-size:11px; padding:6px 12px; border-radius:2px; opacity:0; pointer-events:none; transition:opacity .18s,transform .18s; max-width:80vw; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+  /* send-set dialog */
+  .overlay { position:fixed; inset:0; background:rgba(22,33,28,.45); display:flex; align-items:center; justify-content:center; padding:20px; z-index:50; }
+  .dialog { background:var(--card); border:1px solid var(--ink); border-radius:4px; padding:22px; max-width:440px; width:100%; box-shadow:0 12px 40px rgba(22,33,28,.25); }
+  .dialog h2 { margin:0 0 4px; font-size:14px; }
+  .dlg-sub { font-family:var(--mono); font-size:11px; color:var(--ink-soft); margin:0 0 14px; word-break:break-all; }
+  .pw-reveal { display:flex; align-items:center; gap:8px; background:var(--paper); border:1px dashed var(--rule); border-radius:2px; padding:12px; }
+  .pw-reveal code { font-family:var(--mono); font-size:16px; font-weight:600; color:var(--ink); flex:1; word-break:break-all; letter-spacing:.02em; }
+  .dlg-note { font-size:10.5px; color:var(--ink-soft); margin:12px 0 16px; }
+
+  @media (max-width:540px){
+    body { font-size:15px; }
+    .wrap { padding:16px 12px 80px; }
+    .card{ grid-template-columns:30px 1fr; }
+    .actions{ grid-column:1 / -1; border-top:1px solid var(--rule); padding:4px; justify-content:flex-end; }
+    .seal-stamp{ right:8px; }
+    /* タップしやすいコピーボタン */
+    .cred-copy { font-size:13px; padding:8px 16px; }
+    .cred-row .v { font-size:14px; }
+    .cred-row .k { font-size:11px; width:30px; }
+    .snippet { font-size:14px; }
+    .label { font-size:12px; }
+    .btn { font-size:14px; padding:9px 14px; }
+    .icon { width:34px; height:34px; font-size:15px; }
+    .set-tab { font-size:14px; padding:8px 14px; }
+    .search { font-size:15px; padding:9px 11px; }
+    .lock-field { font-size:15px; padding:11px 12px; }
+    .lock-card { padding:18px 16px; }
+    .head-tools { width:100%; justify-content:space-between; }
+    .switch button { font-size:14px; padding:8px 16px; }
+    .lock-btn { font-size:14px; padding:8px 12px; }
+    .hint { font-size:11px; }
+    /* スマホでは平文書き出しや空にするなど破壊的操作を控えめに隠す（閲覧用途向け） */
+    .mobile-hide { display:none !important; }
+  }
+  /* ---------- V2: passkey / recovery key ---------- */
+  .btn-big { font-size:13px; padding:9px 16px; }
+  .rk-box { border:1px dashed var(--rule); border-radius:2px; padding:10px 12px; margin:12px 0 10px; background:var(--paper); }
+  .rk-box .lock-field { margin-bottom:8px; letter-spacing:.04em; }
+  .pk-list { list-style:none; margin:4px 0 0; padding:0; }
+  .pk-list li { display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid var(--rule); font-size:12px; }
+  .pk-list .pk-name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .pk-list .pk-date { font-family:var(--mono); font-size:10.5px; color:var(--ink-soft); }
+  .pk-list .pk-empty { color:var(--ink-soft); }
+  .dialog { max-height:calc(100vh - 40px); overflow:auto; }
+  #rkCode { font-size:18px; letter-spacing:.06em; }
+  #printArea { display:none; }
+  @media (max-width:540px){
+    .head-tools { flex-wrap:wrap; justify-content:flex-start; }
+    .switch button, .lock-btn { white-space:nowrap; }
+  }
+  @media print {
+    body.printing > *:not(#printArea) { display:none !important; }
+    body.printing #printArea { display:block; font-family:var(--sans); color:#000; padding:24px; }
+    #printArea h1 { font-size:18px; margin:0 0 16px; }
+    #printArea .pa-key { font-family:var(--mono); font-size:24px; font-weight:600; letter-spacing:.08em; border:2px solid #000; padding:14px; margin:0 0 16px; }
+    #printArea p { font-size:12px; margin:0 0 8px; }
+  }
+</style>
+
+<!-- ================= LOCK SCREEN ================= -->
+<div class="lock" id="lockScreen">
+  <h1>スニペット帳</h1>
+  <p class="subtitle">SNIPPET INDEX · LOCKED · <span id="verLock"></span></p>
+
+  <div class="ios-tip hidden" id="iosTip">
+    <strong>📱 iPhone / iPad をお使いの方へ</strong>
+    <p>下の共有ボタン <span class="share-ico">⬆︎</span> から「<b>ホーム画面に追加</b>」しておくと、アプリのように起動でき、データも消えにくくなります。ぜひ追加してからお使いください。</p>
+    <button class="tip-close" id="iosTipClose">閉じる</button>
+  </div>
+
+  <!-- setup (first run) -->
+  <div class="lock-card hidden" id="setupCard">
+    <h2>はじめる</h2>
+    <p>この端末に保存するデータを、アプリが作る鍵で暗号化します。ふだんは<b>パスキー</b>（指紋・顔など）で開き、新しい端末やパスキーが使えないときは<b>復元キー</b>で開きます。覚えるパスワードはありません。</p>
+    <div class="lock-row">
+      <button class="btn btn-primary" id="createBtn">新しく作る</button>
+      <button class="btn" id="startFromBackup">バックアップから始める</button>
+    </div>
+    <input type="file" id="startFile" accept="application/json,.json,.enc.json" hidden>
+    <p class="lock-err" id="setupErr"></p>
+    <div class="warn-block">
+      <strong>復元キーは家の合鍵です。</strong> 作るときに1回だけ表示します。印刷するかパスワード管理アプリに保存し、バックアップファイルとは別の場所にしまってください。パスキーも復元キーも無くすと、中身は誰にも——このアプリにも——開けません。
+    </div>
+    <div class="lock-row" style="margin-top:12px;">
+      <button class="btn btn-quiet" id="toViewFromSetup">📄 セットアップせず、ファイルを読み込むだけ</button>
+    </div>
+  </div>
+
+  <!-- unlock (returning) -->
+  <div class="lock-card hidden" id="unlockCard">
+    <h2>ロックを解除</h2>
+    <div class="lock-row" id="passkeyRow">
+      <button class="btn btn-primary btn-big" id="passkeyBtn">🔑 パスキーで開く</button>
+    </div>
+    <p id="unlockNote"></p>
+
+    <div class="rk-box">
+      <div class="restore-head">復元キーで開く</div>
+      <input class="lock-field" id="rkField" type="text" placeholder="復元キー（25文字）" autocomplete="off" autocapitalize="characters" spellcheck="false">
+      <button class="btn" id="rkUnlockBtn">復元キーで開く</button>
+    </div>
+
+    <div class="restore-box" id="restoreBox">
+      <div class="restore-head">上書き用バックアップから開く（任意）</div>
+      <p class="restore-note">ファイルを選んでからパスキーか復元キーで開くと、この端末の前回データを削除し、選んだバックアップの内容で開きます。別の端末のデータを取り込むときに使います。選ばなければ前回のデータでそのまま開きます。</p>
+      <div class="lock-row">
+        <button class="btn" id="restorePick">上書きバックアップを選ぶ</button>
+        <span class="restore-file" id="restoreFileName">選択なし</span>
+      </div>
+      <input type="file" id="restoreFile" accept="application/json,.json,.enc.json" hidden>
+    </div>
+
+    <p class="lock-err" id="unlockErr"></p>
+    <div class="lock-row" style="margin-top:12px;">
+      <button class="btn btn-quiet" id="toView">📄 ファイルを読み込むだけ（保存しない）</button>
+      <button class="btn btn-quiet" id="forgotBtn">パスキーも復元キーも無い</button>
+    </div>
+  </div>
+
+  <!-- migrate (V1 data found) -->
+  <div class="lock-card hidden" id="migrateCard">
+    <h2>新しい方式へ移ります</h2>
+    <p>この版から、マスターパスワードの代わりに<b>パスキー</b>と<b>復元キー</b>で守ります。いつものマスターパスワードで1回だけ開くと、自動で移ります。移ったあとはマスターパスワードを使いません。</p>
+    <input class="lock-field" id="migratePw" type="password" placeholder="マスターパスワード" autocomplete="current-password">
+    <div class="lock-row">
+      <button class="btn btn-primary" id="migrateBtn">開いて新しい方式へ移る</button>
+    </div>
+    <p class="lock-err" id="migrateErr"></p>
+    <div class="lock-row" style="margin-top:12px;">
+      <button class="btn btn-quiet" id="toViewFromMigrate">📄 ファイルを読み込むだけ（保存しない）</button>
+      <button class="btn btn-quiet" id="forgotOldBtn">パスワードを忘れた</button>
+    </div>
+  </div>
+
+  <!-- view-only (load an encrypted file, no vault) -->
+  <div class="lock-card hidden" id="viewCard">
+    <h2>読み込んで見るだけ</h2>
+    <p>Mac などで「暗号化して書き出し」したファイルを開いて、コピーだけできます。この端末には何も保存されません。スマホでの利用に向いています。</p>
+    <div class="lock-row">
+      <button class="btn btn-primary" id="viewPick">暗号化ファイルを選ぶ</button>
+      <button class="btn btn-quiet" id="viewBack">戻る</button>
+    </div>
+    <input type="file" id="viewFile" accept="application/json,.json,.enc.json" hidden>
+    <p class="lock-err" id="viewErr"></p>
+    <div class="warn-block" style="margin-top:14px;">
+      閉じると内容は消えます。編集や保存はできません（見る・コピーする専用）。
+    </div>
+  </div>
+</div>
+
+<!-- ================= MAIN APP ================= -->
+<div class="wrap mode-copy hidden" id="app">
+  <header>
+    <div>
+      <div class="title-row">
+        <h1>スニペット帳</h1>
+        <input class="data-name" id="dataName" type="text" placeholder="データ名" aria-label="データ名" maxlength="40">
+      </div>
+      <p class="subtitle">SNIPPET INDEX · <span id="verMain"></span></p>
+    </div>
+    <div class="head-tools">
+      <div class="switch" role="group" aria-label="モード">
+        <button id="modeCopy" aria-pressed="true">コピー</button>
+        <button id="modeEdit" aria-pressed="false">編集</button>
+      </div>
+      <button class="lock-btn" id="backupExit" title="上書きバックアップを取ってからロックする">💾 バックアップしてロック</button>
+      <button class="lock-btn" id="keysBtn" title="パスキーと復元キー">🔑 鍵</button>
+      <button class="lock-btn" id="lockNow" title="今すぐロック">🔒 ロック</button>
+    </div>
+  </header>
+
+  <div class="sets" id="sets" role="tablist" aria-label="セット"></div>
+  <hr class="sets-rule">
+
+  <div class="toolbar">
+    <input class="search" id="search" type="search" placeholder="絞り込む" aria-label="絞り込む">
+    <button class="btn btn-primary" id="add" hidden>追加</button>
+    <button class="btn" id="addSecret" hidden>ID/パスワードを追加</button>
+  </div>
+
+  <p class="hint" id="hint"></p>
+
+  <div class="backup-banner" id="backupBanner">
+    <span class="msg" id="backupMsg"></span>
+    <button id="backupNow">今すぐバックアップ</button>
+  </div>
+
+  <div class="cards" id="cards"></div>
+  <p class="status" id="status"></p>
+
+  <footer>
+    <div class="footer-tools">
+      <button class="btn" id="exportEnc" title="全セットを暗号化してバックアップ">全体を暗号化して書き出し</button>
+      <button class="btn" id="importBtn">読み込み</button>
+      <input type="file" id="importFile" accept="application/json,.json,.enc.json" hidden>
+      <button class="btn btn-quiet" id="exportSet" title="平文で書き出し">平文で書き出し ▾</button>
+      <button class="btn btn-primary" id="sendSet" title="このセットだけを暗号化して人に送る">このセットを暗号化して送る</button>
+    </div>
+    <button class="btn btn-quiet" id="reset">このセットを空に</button>
+    <p class="warn">
+      端末内のデータはアプリが作った鍵で暗号化し、その鍵はパスキーと復元キーで守っています。バックアップは
+      <strong>「全体を暗号化して書き出し」</strong>を使ってください。<strong>平文で書き出したファイルは中身が見える状態</strong>なので、クラウド同期フォルダなどに置かず保管場所に注意してください。
+    </p>
+  </footer>
+</div>
+
+<!-- send-set password reveal dialog -->
+<div class="overlay hidden" id="sendOverlay">
+  <div class="dialog">
+    <h2>このセットのパスワード</h2>
+    <p class="dlg-sub" id="sendFileName">—</p>
+    <div class="pw-reveal">
+      <code id="sendPw">—</code>
+      <button class="btn" id="sendCopy">コピー</button>
+    </div>
+    <div class="warn-block" style="margin-top:14px;">
+      <strong>ファイルとこのパスワードは、必ず別々の経路で送ってください。</strong>
+      たとえばファイルはメールで、パスワードは電話・SMS・CP2P などで。
+      同じメールに両方入れると、暗号化した意味がなくなります。
+    </div>
+    <p class="dlg-note">このパスワードは今だけ表示されます。閉じると二度と表示できません（毎回別のパスワードになります）。控えてから閉じてください。</p>
+    <div class="lock-row" style="justify-content:flex-end;">
+      <button class="btn btn-primary" id="sendDone">控えました・閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- backup-and-exit confirmation dialog -->
+<div class="overlay hidden" id="exitOverlay">
+  <div class="dialog">
+    <h2>バックアップが完了しました</h2>
+    <p class="dlg-sub" id="exitFileName">—</p>
+    <div class="warn-block" style="margin-top:0;background:rgba(46,111,112,.08);border-left-color:var(--focus);">
+      上書き用の暗号バックアップを書き出しました。<strong style="color:var(--focus);">「ロックする」を押すと、ロック画面に戻ります。</strong>
+      次回このバックアップから起動すると、この時点の内容に戻せます。
+    </div>
+    <p class="dlg-note">保存先は、お使いのブラウザのダウンロード先フォルダ（iPhone は「ファイル」アプリ等）です。別の端末に同期するときは、このファイルを相手の端末に渡し、起動画面の「上書き用バックアップから開く」で読み込んでください。</p>
+    <div class="lock-row" style="justify-content:flex-end;">
+      <button class="btn btn-primary" id="exitDone">ロックする</button>
+    </div>
+  </div>
+</div>
+
+<!-- keys settings dialog -->
+<div class="overlay hidden" id="keysOverlay">
+  <div class="dialog">
+    <h2>鍵の設定</h2>
+    <p class="dlg-sub" id="keysSub">—</p>
+    <div class="restore-head">登録したパスキー</div>
+    <ul class="pk-list" id="pkList"></ul>
+    <div class="lock-row" style="margin:8px 0 14px;">
+      <button class="btn btn-primary" id="addPasskeyBtn">この端末でパスキーを登録</button>
+    </div>
+    <div class="restore-head">復元キー</div>
+    <p class="dlg-note" style="margin:0 0 8px;">無くしたとき・人に見られたときは作り直してください。作り直すと、これから書き出すバックアップは新しい復元キーで開きます（前に書き出したバックアップは古い復元キーで開いたままです）。</p>
+    <div class="lock-row" style="margin-bottom:14px;">
+      <button class="btn" id="regenRkBtn">復元キーを作り直す</button>
+      <button class="btn btn-quiet" id="rekeyBtn">鍵をすべて作り直す</button>
+    </div>
+    <p class="lock-err" id="keysErr"></p>
+    <div class="lock-row" style="justify-content:flex-end;">
+      <button class="btn btn-primary" id="keysClose">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- open-a-file dialog (passkey or recovery key) -->
+<div class="overlay hidden" id="openOverlay">
+  <div class="dialog">
+    <h2 id="openTitle">このファイルを開く</h2>
+    <p class="dlg-sub" id="openSub">パスキーか復元キーで開きます。</p>
+    <div class="lock-row" id="openPasskeyRow" style="margin-bottom:12px;">
+      <button class="btn btn-primary btn-big" id="openPasskeyBtn">🔑 パスキーで開く</button>
+    </div>
+    <input class="lock-field" id="openRk" type="text" placeholder="復元キー（25文字）" autocomplete="off" autocapitalize="characters" spellcheck="false">
+    <div class="lock-row">
+      <button class="btn" id="openRkBtn">復元キーで開く</button>
+      <button class="btn btn-quiet" id="openCancel">やめる</button>
+    </div>
+    <p class="lock-err" id="openErr"></p>
+  </div>
+</div>
+
+<!-- recovery key reveal dialog -->
+<div class="overlay hidden" id="rkOverlay">
+  <div class="dialog">
+    <h2 id="rkTitle">あなたの復元キー</h2>
+    <p class="dlg-sub" id="rkSub">—</p>
+    <div class="pw-reveal">
+      <code id="rkCode">—</code>
+    </div>
+    <div class="lock-row" style="margin-top:10px;">
+      <button class="btn" id="rkCopy">コピー（パスワード管理アプリへ）</button>
+      <button class="btn" id="rkPrint">印刷する</button>
+    </div>
+    <div class="warn-block" style="margin-top:14px;">
+      <strong>この画面を閉じると、二度と表示できません。</strong>
+      印刷するか、パスワード管理アプリに保存してください。<strong>バックアップファイルとは別の場所に</strong>しまい、人に見せないでください。
+    </div>
+    <p class="dlg-note">控えたら、確かめのために<b>最後の5文字</b>を打ってください。</p>
+    <input class="lock-field" id="rkConfirm" type="text" placeholder="最後の5文字" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="8">
+    <p class="lock-err" id="rkErr"></p>
+    <div class="lock-row" style="justify-content:flex-end;">
+      <button class="btn btn-quiet" id="rkCancel">やめる</button>
+      <button class="btn btn-primary" id="rkDone">控えました</button>
+    </div>
+  </div>
+</div>
+
+<!-- print-only area for the recovery key -->
+<div id="printArea" aria-hidden="true"></div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+  /* =========================================================
+     Version  —  更新時はここだけ書き換える。
+     ファイル本体を変更したら版番号を上げ、公式サイトの
+     「バージョン ⇄ ハッシュ」対応表も更新すること。
+     ========================================================= */
+  const APP_VERSION = 'V2.00.002';
+
+  /* =========================================================
+     Storage keys
+     ========================================================= */
+  const META_KEY = 'snippet-book:v4:meta';   // V1 の形（引っ越しのときだけ読む）
+  const DATA_KEY = 'snippet-book:v4:data';
+  const META5_KEY = 'snippet-book:v5:meta';  // { version, vaultId, wraps[] }  平文で保存（DK を包んだものだけ）
+  const DATA5_KEY = 'snippet-book:v5:data';  // { iv, ct }  DK で暗号化した本体
+
+  /* ---------------------------------------------------------
+     Storage layer
+     Claude のプレビューでは window.storage を、
+     ローカルファイル(file://)やブラウザ単体では localStorage を使う。
+     どちらでも同じ API で動くように吸収する。
+     --------------------------------------------------------- */
+  const store = (() => {
+    const hasWin = (typeof window !== 'undefined') && window.storage
+      && typeof window.storage.get === 'function';
+    if (hasWin) {
+      return {
+        async get(k) { return await window.storage.get(k); },          // {value} | throws/null
+        async set(k, v) { return await window.storage.set(k, v); },
+        async delete(k) { return await window.storage.delete(k); },
+      };
+    }
+    // localStorage fallback（file:// でも動く）
+    return {
+      async get(k) {
+        const v = localStorage.getItem(k);
+        if (v === null) throw new Error('not found');
+        return { value: v };
+      },
+      async set(k, v) { localStorage.setItem(k, v); return { ok: true }; },
+      async delete(k) { localStorage.removeItem(k); return { ok: true }; },
+    };
+  })();
+
+  /*<core> ここから </core> までは鍵と暗号だけ（画面に触れない）。test-core.mjs がここを切り出して試す */
+  const enc = new TextEncoder();
+  const dec = new TextDecoder();
+
+  /* base64 helpers */
+  const b64 = {
+    enc: buf => btoa(String.fromCharCode(...new Uint8Array(buf))),
+    dec: str => Uint8Array.from(atob(str), c => c.charCodeAt(0)).buffer,
+  };
+  const b64url = {
+    enc: buf => b64.enc(buf).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''),
+    dec: str => b64.dec(str.replace(/-/g,'+').replace(/_/g,'/') + '==='.slice((str.length + 3) % 4)),
+  };
+  function randomBytes(n) { return crypto.getRandomValues(new Uint8Array(n)); }
+
+  /* =========================================================
+     Crypto (WebCrypto: AES-GCM / HKDF / PBKDF2)
+     V2 からは「データの鍵（DK）」をアプリが作り、
+     パスキー（PRF）と復元キーで包んで保存する。人が決めるパスワードは鍵にしない。
+     PBKDF2 は、ファイル専用パスワード・セット送信・古い形（v4）を開くときだけ使う。
+     ========================================================= */
+  const PBKDF2_ITER_OLD = 250000;   // V1 で作ったファイル（iter の書いていないもの）
+  const PBKDF2_ITER_NEW = 600000;   // V2 で作るファイル
+  async function deriveKey(password, salt, iterations) {
+    const base = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+    return crypto.subtle.deriveKey(
+      { name:'PBKDF2', salt, iterations: iterations || PBKDF2_ITER_OLD, hash:'SHA-256' },
+      base, { name:'AES-GCM', length:256 }, false, ['encrypt','decrypt']
+    );
+  }
+  async function encryptJSON(key, obj) {
+    const iv = randomBytes(12);
+    const ct = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, key, enc.encode(JSON.stringify(obj)));
+    return { iv:b64.enc(iv), ct:b64.enc(ct) };
+  }
+  async function decryptJSON(key, blob) {
+    const iv = new Uint8Array(b64.dec(blob.iv));
+    const pt = await crypto.subtle.decrypt({ name:'AES-GCM', iv }, key, b64.dec(blob.ct));
+    return JSON.parse(dec.decode(pt));
+  }
+
+  /* ---------- データの鍵（DK） ---------- */
+  function newDK() { return randomBytes(32); }
+  function importDK(raw) {
+    return crypto.subtle.importKey('raw', raw, { name:'AES-GCM' }, false, ['encrypt','decrypt']);
+  }
+  // パスキーの PRF の値や復元キーから「包む鍵」を作る（HKDF-SHA256）
+  async function kekFrom(secret, salt, info) {
+    const base = await crypto.subtle.importKey('raw', secret, 'HKDF', false, ['deriveKey']);
+    return crypto.subtle.deriveKey(
+      { name:'HKDF', hash:'SHA-256', salt, info: enc.encode(info) },
+      base, { name:'AES-GCM', length:256 }, false, ['encrypt','decrypt']
+    );
+  }
+  async function wrapDK(kek, dkRaw) {
+    const iv = randomBytes(12);
+    const ct = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, kek, dkRaw);
+    return { iv:b64.enc(iv), ct:b64.enc(ct) };
+  }
+  async function unwrapDK(kek, w) {
+    const pt = await crypto.subtle.decrypt({ name:'AES-GCM', iv:new Uint8Array(b64.dec(w.iv)) }, kek, b64.dec(w.ct));
+    return new Uint8Array(pt);
+  }
+
+  /* ---------- 復元キー ----------
+     でたらめな 25 文字（5 bit × 25 = 125 bit）。Crockford の 32 文字を使い、
+     打ち間違えやすい O→0・I/L→1 は読むときに直す。 */
+  const RK_ABC = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+  const RK_LEN = 25;
+  function genRecoveryKey() {
+    return Array.from(randomBytes(RK_LEN), b => RK_ABC[b & 31]).join('');   // 256 は 32 で割り切れるので偏らない
+  }
+  function normalizeRecoveryKey(input) {
+    const s = String(input || '').toUpperCase().replace(/[\s\-‐－ー_]/g, '')
+      .replace(/O/g,'0').replace(/[IL]/g,'1');
+    if (s.length !== RK_LEN) return null;
+    for (const c of s) if (!RK_ABC.includes(c)) return null;
+    return s;
+  }
+  function formatRecoveryKey(s) { return s.match(/.{1,5}/g).join('-'); }
+
+  const INFO_RK = 'snippet-book/v5/recovery';
+  const INFO_PK = 'snippet-book/v5/passkey';
+  async function makeRecoveryWrap(dkRaw, rk) {
+    const salt = randomBytes(16);
+    const kek = await kekFrom(enc.encode(rk), salt, INFO_RK);
+    return { type:'recovery', salt:b64.enc(salt), created:Date.now(), ...(await wrapDK(kek, dkRaw)) };
+  }
+  async function makePasskeyWrap(dkRaw, prfOut, credId, prfSalt, label) {
+    const salt = randomBytes(16);
+    const kek = await kekFrom(prfOut, salt, INFO_PK);
+    return { type:'passkey', credId, prfSalt, label, salt:b64.enc(salt), created:Date.now(), ...(await wrapDK(kek, dkRaw)) };
+  }
+  // 復元キーで DK を取り出す。合わなければ null
+  async function openWithRecovery(wraps, input) {
+    const rk = normalizeRecoveryKey(input);
+    if (!rk) return null;
+    for (const w of (wraps || []).filter(w => w.type === 'recovery')) {
+      try {
+        const kek = await kekFrom(enc.encode(rk), new Uint8Array(b64.dec(w.salt)), INFO_RK);
+        return await unwrapDK(kek, w);
+      } catch {}
+    }
+    return null;
+  }
+  async function openWithPrf(wrap, prfOut) {
+    const kek = await kekFrom(prfOut, new Uint8Array(b64.dec(wrap.salt)), INFO_PK);
+    return unwrapDK(kek, wrap);
+  }
+
+  /* ---------- 金庫（この端末の保存）とバックアップの形 ---------- */
+  function newVaultMeta(wraps) {
+    return { version:5, vaultId: b64url.enc(randomBytes(16)), wraps };
+  }
+  function isV5File(d) { return !!(d && d.version === 5 && d.kdf === 'dk-wrap' && Array.isArray(d.wraps) && d.iv && d.ct); }
+  function isV4File(d) { return !!(d && d.enc === 'aes-gcm' && d.iv && d.ct && d.salt && d.kdf !== 'dk-wrap'); }
+  async function makeV5File(meta, key, payload, extra) {
+    return { version:5, enc:'aes-gcm', kdf:'dk-wrap', ...extra, vaultId:meta.vaultId, wraps:meta.wraps, ...(await encryptJSON(key, payload)) };
+  }
+  async function openV4File(data, password) {
+    const key = await deriveKey(password, new Uint8Array(b64.dec(data.salt)), data.iter || PBKDF2_ITER_OLD);
+    return decryptJSON(key, data);
+  }
+  async function makePwFile(password, payload, extra) {
+    const salt = randomBytes(16);
+    const key = await deriveKey(password, salt, PBKDF2_ITER_NEW);
+    return { version:4, enc:'aes-gcm', kdf:'pbkdf2', iter:PBKDF2_ITER_NEW, ...extra, salt:b64.enc(salt), ...(await encryptJSON(key, payload)) };
+  }
+  /*</core>*/
+
+  /* =========================================================
+     Passphrase generator
+     ========================================================= */
+  const WORDS = ['tetsu','sakura','kumo','ishi','mori','kawa','tori','hoshi','yama','umi','kaze','tsuki','hikari','niwa','tera','hashi','matsu','take','ume','tsuru','kame','ryu','tora','washi','aoi','akane','midori','kogane','shizuku','kasumi','arashi','nagi'];
+  function genPassphrase() {
+    const w = () => WORDS[crypto.getRandomValues(new Uint32Array(1))[0] % WORDS.length];
+    const n = crypto.getRandomValues(new Uint32Array(1))[0] % 90 + 10;
+    const sym = '!#$%&*+?'[crypto.getRandomValues(new Uint32Array(1))[0] % 8];
+    const cap = s => s[0].toUpperCase() + s.slice(1);
+    return `${cap(w())}-${w()}-${cap(w())}-${n}${sym}`;
+  }
+
+  /* =========================================================
+     App state
+     ========================================================= */
+  let cryptoKey = null;   // DK（AES-GCM）。ロックで消す
+  let dkRaw = null;       // DK の生の値。パスキーや復元キーで包み直すときに使う。ロックで 0 にする
+  let vault = null;       // この端末の金庫 { version:5, vaultId, wraps[] }
+  let book = { sets: [], active: 0, name: 'snippet-book' };
+  let mode = 'copy';
+  let saveTimer = null;
+  let viewOnly = false;   // 読み込むだけ（保存しない）モード
+  let pendingRestore = null;  // 起動時に取り込む上書きバックアップ（{data} 復号済み）
+  const OVERWRITE_MARK = 'overwrite-backup';  // 上書き用バックアップの識別印
+  const peeking = new Set();
+
+  const ua = navigator.userAgent || '';
+  const isMac = /Mac|iPhone|iPad/.test(navigator.platform || ua);
+  const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+  const isIOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+  const MOD = isMac ? '⌘' : 'Ctrl';
+
+  const LASTBACKUP_KEY = 'snippet-book:v4:lastbackup';  // 平文。最終バックアップ時刻(ミリ秒)
+  const BACKUP_STALE_DAYS = 3;      // 何日バックアップしないと促すか
+  let dirtySinceBackup = false;     // 前回バックアップ以降に変更があったか
+
+  function uid() { return Math.random().toString(36).slice(2, 10); }
+
+  const SEED = {
+    name: 'snippet-book',
+    sets: [
+      { name:'サンプル', items:[
+        { id:uid(), title:'サンプル：ログイン情報', user:'user@example.com', text:'サンプルのパスワード', secret:true },
+      ]},
+    ],
+    active: 0,
+  };
+
+  /* =========================================================
+     Passkey (WebAuthn PRF)
+     パスキーから 32 バイトの値（PRF）を取り出し、DK を包む鍵にする。
+     サーバーは使わない（チャレンジはその場で作るだけ）。パスキーは今のドメインに結びつく。
+     ========================================================= */
+  const passkeyBase = !!(window.PublicKeyCredential && navigator.credentials && window.isSecureContext
+    && /^https?:$/.test(location.protocol));
+  // PRF が使えそうか。分からないとき（古い版）は「たぶん」= true にして、登録のときに確かめる
+  async function passkeyLikely() {
+    if (!passkeyBase) return false;
+    try {
+      if (typeof PublicKeyCredential.getClientCapabilities === 'function') {
+        const c = await PublicKeyCredential.getClientCapabilities();
+        if (c && c['extension:prf'] === false) return false;
+      }
+    } catch {}
+    return true;
+  }
+  function deviceLabel() {
+    const os = /iPhone/.test(ua) ? 'iPhone' : /iPad/.test(ua) || isIOS ? 'iPad'
+      : /Android/.test(ua) ? 'Android' : /Windows/.test(ua) ? 'Windows' : /Mac/.test(ua) ? 'Mac' : 'この端末';
+    const br = /Edg\//.test(ua) ? 'Edge' : /Firefox\//.test(ua) ? 'Firefox'
+      : /(Chrome|CriOS)\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : 'ブラウザ';
+    return `${os} の ${br}`;
+  }
+  function passkeyWraps(meta) { return (meta && meta.wraps || []).filter(w => w.type === 'passkey'); }
+
+  // 登録して、すぐ PRF の値を取り出す。返り値 { credId, prfSalt, prfOut }
+  async function registerPasskey(vaultId, label, existing) {
+    if (!(await passkeyLikely())) throw new Error('この端末・ブラウザはパスキーで開く方式に対応していません');
+    const prfSalt = randomBytes(32);
+    const cred = await navigator.credentials.create({ publicKey: {
+      rp: { name:'スニペット帳', id: location.hostname },
+      user: { id: new Uint8Array(b64url.dec(vaultId)), name: `スニペット帳（${book.name || 'snippet-book'}）`, displayName: `スニペット帳 ${label}` },
+      challenge: randomBytes(32),
+      pubKeyCredParams: [{ type:'public-key', alg:-7 }, { type:'public-key', alg:-257 }],
+      authenticatorSelection: { residentKey:'required', requireResidentKey:true, userVerification:'required' },
+      excludeCredentials: (existing || []).map(w => ({ type:'public-key', id: new Uint8Array(b64url.dec(w.credId)) })),
+      attestation: 'none',
+      timeout: 120000,
+      extensions: { prf: { eval: { first: prfSalt } } },
+    }});
+    const ext = (cred.getClientExtensionResults && cred.getClientExtensionResults()) || {};
+    const credId = b64url.enc(cred.rawId);
+    if (!ext.prf || ext.prf.enabled === false) {
+      throw new Error('パスキーは作られましたが、この端末は「パスキーで開く」に必要な機能（PRF）に対応していませんでした。パスワード管理の画面から、いま作った「スニペット帳」のパスキーを消しておいてください');
+    }
+    let prfOut = ext.prf.results && ext.prf.results.first;
+    if (!prfOut) {
+      // 登録のときに値を返さない環境では、すぐもう一度だけ本人確認して取り出す
+      const got = await getPrf([{ credId, prfSalt: b64.enc(prfSalt) }]);
+      prfOut = got.prfOut;
+    }
+    return { credId, prfSalt: b64.enc(prfSalt), prfOut: new Uint8Array(prfOut) };
+  }
+
+  // 登録済みのどれかで本人確認し、使ったパスキーと PRF の値を返す
+  async function getPrf(wraps) {
+    if (!passkeyBase) throw new Error('この画面ではパスキーを使えません');
+    if (!wraps.length) throw new Error('パスキーが登録されていません');
+    const evalByCredential = {};
+    wraps.forEach(w => { evalByCredential[w.credId] = { first: new Uint8Array(b64.dec(w.prfSalt)) }; });
+    const cred = await navigator.credentials.get({ publicKey: {
+      challenge: randomBytes(32),
+      rpId: location.hostname,
+      userVerification: 'required',
+      timeout: 120000,
+      allowCredentials: wraps.map(w => ({ type:'public-key', id: new Uint8Array(b64url.dec(w.credId)) })),
+      extensions: { prf: { evalByCredential } },
+    }});
+    const ext = (cred.getClientExtensionResults && cred.getClientExtensionResults()) || {};
+    const prfOut = ext.prf && ext.prf.results && ext.prf.results.first;
+    if (!prfOut) throw new Error('パスキーから鍵を取り出せませんでした（この端末は対応していない可能性があります）');
+    const credId = b64url.enc(cred.rawId);
+    return { credId, prfOut: new Uint8Array(prfOut), wrap: wraps.find(w => w.credId === credId) };
+  }
+
+  // パスキーで DK を取り出す
+  async function openWithPasskey(wraps) {
+    const { prfOut, wrap } = await getPrf(wraps);
+    if (!wrap) throw new Error('このデータに登録されていないパスキーでした');
+    return openWithPrf(wrap, prfOut);
+  }
+
+  function passkeyErrText(e) {
+    if (e && e.name === 'NotAllowedError') return 'パスキーの確認が取り消されたか、時間切れになりました';
+    if (e && e.name === 'InvalidStateError') return 'この端末には、このデータのパスキーがもう登録されています';
+    if (e && e.name === 'SecurityError') return 'この場所（アドレス）ではパスキーを使えません';
+    return (e && e.message) || 'パスキーでうまくいきませんでした';
+  }
+
+  /* =========================================================
+     Lock screen logic
+     ========================================================= */
+  const lockScreen = document.getElementById('lockScreen');
+  const setupCard = document.getElementById('setupCard');
+  const unlockCard = document.getElementById('unlockCard');
+  const migrateCard = document.getElementById('migrateCard');
+  const appEl = document.getElementById('app');
+  const $ = id => document.getElementById(id);
+
+  async function loadJSON(k) {
+    try { const r = await store.get(k); return r && r.value ? JSON.parse(r.value) : null; } catch { return null; }
+  }
+  async function saveVaultMeta() { await store.set(META5_KEY, JSON.stringify(vault)); }
+  async function openSession(dk) {
+    if (dkRaw && dkRaw !== dk) dkRaw.fill(0);
+    dkRaw = dk;
+    cryptoKey = await importDK(dk);
+  }
+  function showCard(card) {
+    [setupCard, unlockCard, migrateCard, $('viewCard')].forEach(c => c.classList.toggle('hidden', c !== card));
+  }
+
+  async function boot() {
+    const vl = $('verLock'); if (vl) vl.textContent = APP_VERSION;
+    const vm = $('verMain'); if (vm) vm.textContent = APP_VERSION;
+    // iOS Safari かつ未インストール(ホーム画面に追加していない)なら案内を表示
+    let tipDismissed = false;
+    try { tipDismissed = localStorage.getItem('snippet-book:iostip-dismissed') === '1'; } catch {}
+    if (isIOS && !isStandalone && !tipDismissed) {
+      $('iosTip').classList.remove('hidden');
+    }
+    clearRestore();
+    vault = await loadJSON(META5_KEY);
+    const old = await loadJSON(META_KEY);
+    if (vault && vault.version === 5 && Array.isArray(vault.wraps)) {
+      showUnlock();
+    } else if (old && old.salt && old.verifier) {
+      vault = null;
+      showCard(migrateCard);
+      if (!isTouch) setTimeout(() => $('migratePw').focus(), 50);
+    } else {
+      vault = null;
+      showCard(setupCard);
+    }
+  }
+
+  function showUnlock() {
+    showCard(unlockCard);
+    $('unlockErr').textContent = '';
+    $('rkField').value = '';
+    const pks = passkeyWraps(vault);
+    const canPk = passkeyBase && pks.length > 0;
+    $('passkeyRow').classList.toggle('hidden', !canPk);
+    $('unlockNote').textContent = canPk
+      ? `登録済みのパスキー：${pks.map(w => w.label).join('、')}`
+      : !passkeyBase
+        ? 'この開き方（アドレス）ではパスキーを使えません。復元キーで開いてください。'
+        : 'まだパスキーが登録されていません。復元キーで開いたあと、「🔑 鍵」で登録できます。';
+    if (!canPk && !isTouch) setTimeout(() => $('rkField').focus(), 50);
+  }
+
+  $('iosTipClose').addEventListener('click', () => {
+    $('iosTip').classList.add('hidden');
+    try { localStorage.setItem('snippet-book:iostip-dismissed', '1'); } catch {}
+  });
+
+  /* ---------- 復元キーを見せる（控えたことを確かめる） ---------- */
+  const RK_TEXT = {
+    new:     ['あなたの復元キー', '新しい端末で開くときや、パスキーが使えないときに使います。'],
+    migrate: ['あなたの復元キー', 'これからはマスターパスワードの代わりにこの復元キーを使います（パスキーが使えないときだけ）。'],
+    regen:   ['新しい復元キー', '「控えました」を押すと、古い復元キーではこの端末のデータを開けなくなります。'],
+    rekey:   ['新しい復元キー', '鍵をすべて作り直します。登録したパスキーは外れるので、あとで登録し直してください。'],
+  };
+  let rkPrintName = '';
+  function showRecoveryKey(rk, kind, name) {
+    rkPrintName = name || book.name || 'snippet-book';
+    const [title, sub] = RK_TEXT[kind] || RK_TEXT.new;
+    $('rkTitle').textContent = title;
+    $('rkSub').textContent = sub;
+    $('rkCode').textContent = formatRecoveryKey(rk);
+    $('rkConfirm').value = ''; $('rkErr').textContent = '';
+    $('rkOverlay').classList.remove('hidden');
+    return new Promise(resolve => {
+      const close = ok => {
+        $('rkOverlay').classList.add('hidden');
+        $('rkCode').textContent = '—';
+        $('rkDone').onclick = $('rkCancel').onclick = $('rkCopy').onclick = $('rkPrint').onclick = $('rkConfirm').onkeydown = null;
+        resolve(ok);
+      };
+      $('rkCopy').onclick = async () => {
+        const ok = await writeClip(formatRecoveryKey(rk));
+        $('rkCopy').textContent = ok ? 'コピーしました' : 'コピー不可';
+        setTimeout(() => { $('rkCopy').textContent = 'コピー（パスワード管理アプリへ）'; }, 1600);
+      };
+      $('rkPrint').onclick = () => printRecoveryKey(rk);
+      $('rkDone').onclick = () => {
+        const typed = String($('rkConfirm').value).toUpperCase().replace(/[\s\-]/g,'').replace(/O/g,'0').replace(/[IL]/g,'1');
+        if (typed !== rk.slice(-5)) { $('rkErr').textContent = '最後の5文字が合いません。控えた復元キーを見て打ってください'; return; }
+        close(true);
+      };
+      $('rkConfirm').onkeydown = e => { if (e.key === 'Enter') $('rkDone').onclick(); };
+      $('rkCancel').onclick = () => {
+        if (confirm('やめますか？ この復元キーは使われません。')) close(false);
+      };
+    });
+  }
+  function printRecoveryKey(rk) {
+    const pa = $('printArea');
+    const d = new Date();
+    pa.innerHTML = `<h1>スニペット帳 復元キー</h1>
+      <p class="pa-key">${esc(formatRecoveryKey(rk))}</p>
+      <p>データ名：${esc(rkPrintName)}　／　作成日：${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日　／　${esc(location.host || 'ローカル')}</p>
+      <p>新しい端末で開くとき、パスキーが使えないときに使います。</p>
+      <p>この紙は人に見せず、バックアップファイルとは別の場所にしまってください。</p>`;
+    document.body.classList.add('printing');
+    const done = () => { document.body.classList.remove('printing'); pa.innerHTML = ''; window.removeEventListener('afterprint', done); };
+    window.addEventListener('afterprint', done);
+    window.print();
+    setTimeout(() => { if (!document.body.classList.contains('printing')) return; done(); }, 60000);
+  }
+
+  /* ---------- パスキーか復元キーで、ファイルの鍵を開ける ---------- */
+  function askOpen(wraps, title, sub) {
+    const pks = (wraps || []).filter(w => w.type === 'passkey');
+    $('openTitle').textContent = title || 'このファイルを開く';
+    $('openSub').textContent = sub || (pks.length && passkeyBase ? 'パスキーか復元キーで開きます。' : '復元キーで開きます。');
+    $('openPasskeyRow').classList.toggle('hidden', !(pks.length && passkeyBase));
+    $('openRk').value = ''; $('openErr').textContent = '';
+    $('openOverlay').classList.remove('hidden');
+    if (!(pks.length && passkeyBase) && !isTouch) setTimeout(() => $('openRk').focus(), 50);
+    return new Promise(resolve => {
+      const close = dk => {
+        $('openOverlay').classList.add('hidden');
+        $('openPasskeyBtn').onclick = $('openRkBtn').onclick = $('openCancel').onclick = $('openRk').onkeydown = null;
+        resolve(dk);
+      };
+      $('openPasskeyBtn').onclick = async () => {
+        $('openErr').textContent = 'パスキーを確かめています…';
+        try { close(await openWithPasskey(pks)); }
+        catch (e) { $('openErr').textContent = passkeyErrText(e); }
+      };
+      $('openRkBtn').onclick = async () => {
+        $('openErr').textContent = '確かめています…';
+        const dk = await openWithRecovery(wraps, $('openRk').value);
+        if (dk) close(dk); else $('openErr').textContent = '復元キーが違います（25文字・区切りの - はあってもなくてもかまいません）';
+      };
+      $('openRk').onkeydown = e => { if (e.key === 'Enter') $('openRkBtn').onclick(); };
+      $('openCancel').onclick = () => close(null);
+    });
+  }
+
+  /* ---------- パスキーを登録する ---------- */
+  async function addPasskey() {
+    if (!dkRaw || !vault) throw new Error('先にロックを解除してください');
+    const label = (prompt('このパスキーの名前（どの端末か分かるように）', deviceLabel()) || '').trim();
+    if (!label) return false;
+    const r = await registerPasskey(vault.vaultId, label, passkeyWraps(vault));
+    vault.wraps.push(await makePasskeyWrap(dkRaw, r.prfOut, r.credId, r.prfSalt, label));
+    r.prfOut.fill(0);
+    await saveVaultMeta();
+    markNeedsBackup();
+    showToast('パスキーを登録しました');
+    setStatus(`パスキー「${label}」を登録しました。次からは「🔑 パスキーで開く」で開けます`);
+    return true;
+  }
+  async function offerPasskey(message) {
+    if (!(await passkeyLikely())) {
+      setStatus('この端末・ブラウザはパスキーに対応していないため、開くときは復元キーを使います');
+      return;
+    }
+    if (!confirm(message || 'この端末でパスキーを登録しますか？\n\n次からは指紋・顔など（端末のロック解除と同じ方法）で開けます。')) {
+      setStatus('パスキーはあとから「🔑 鍵」で登録できます');
+      return;
+    }
+    try { await addPasskey(); }
+    catch (e) { setStatus(passkeyErrText(e), true); showToast('パスキーを登録できませんでした', true); }
+  }
+  function markNeedsBackup() {
+    dirtySinceBackup = true;
+    updateBackupBanner();
+  }
+
+  /* ---------- はじめて作る ---------- */
+  $('createBtn').addEventListener('click', createVault);
+  async function createVault() {
+    const errEl = $('setupErr');
+    errEl.textContent = '';
+    try {
+      if (await startNewVault(normalize(SEED), 'new')) await offerPasskey();
+    } catch (e) {
+      errEl.textContent = '作れませんでした：' + e.message;
+    }
+  }
+  // 新しい DK と復元キーで金庫を作り、中身を保存して開く。復元キーを控えなければ何もしない
+  async function startNewVault(content, kind) {
+    const dk = newDK();
+    const rk = genRecoveryKey();
+    if (!(await showRecoveryKey(rk, kind, content.name))) { dk.fill(0); return false; }
+    vault = newVaultMeta([await makeRecoveryWrap(dk, rk)]);
+    await openSession(dk);
+    book = content;
+    await persist();
+    await saveVaultMeta();
+    enterApp();
+    return true;
+  }
+
+  /* ---------- バックアップから始める（この端末にまだ何も無いとき） ---------- */
+  $('startFromBackup').addEventListener('click', () => $('startFile').click());
+  $('startFile').addEventListener('change', async e => {
+    const file = e.target.files[0]; e.target.value = '';
+    if (!file) return;
+    const errEl = $('setupErr');
+    errEl.textContent = 'ファイルを確認しています…';
+    try {
+      const data = JSON.parse(await file.text());
+      if (isV5File(data)) {
+        const dk = await askOpen(data.wraps, 'バックアップから始める', file.name);
+        if (!dk) { errEl.textContent = ''; return; }
+        const content = await decryptJSON(await importDK(dk), data);
+        vault = { version:5, vaultId:data.vaultId, wraps:data.wraps };
+        await openSession(dk);
+        book = normalize(toBook(content, file.name));
+        await persist();
+        await saveVaultMeta();
+        errEl.textContent = '';
+        enterApp();
+        setStatus('バックアップから始めました');
+        await offerPasskey('この端末でパスキーを登録しますか？\n\n（同期したパスキーでいま開けた場合は、登録しなくても次からパスキーで開けます）');
+      } else if (isV4File(data)) {
+        const content = await decryptImport(data);
+        if (content === null) { errEl.textContent = ''; return; }
+        errEl.textContent = '';
+        if (await startNewVault(normalize(toBook(content, file.name)), 'migrate')) {
+          markNeedsBackup();
+          setStatus('古い形のバックアップから始めました。新しい形でバックアップを取り直してください');
+          await offerPasskey();
+        }
+      } else {
+        errEl.textContent = '暗号化したバックアップファイルを選んでください';
+      }
+    } catch (err) {
+      errEl.textContent = '開けませんでした：' + err.message;
+    }
+  });
+
+  /* ---------- ふだん開く ---------- */
+  $('passkeyBtn').addEventListener('click', async () => {
+    const errEl = $('unlockErr');
+    errEl.textContent = 'パスキーを確かめています…';
+    try { await finishUnlock(await openWithPasskey(passkeyWraps(vault))); }
+    catch (e) { errEl.textContent = passkeyErrText(e); }
+  });
+  $('rkUnlockBtn').addEventListener('click', unlockWithRk);
+  $('rkField').addEventListener('keydown', e => { if (e.key === 'Enter') unlockWithRk(); });
+  async function unlockWithRk() {
+    const errEl = $('unlockErr');
+    errEl.textContent = '確かめています…';
+    const dk = await openWithRecovery(vault.wraps, $('rkField').value);
+    if (!dk) { errEl.textContent = '復元キーが違います（25文字・区切りの - はあってもなくてもかまいません）'; return; }
+    $('rkField').value = '';
+    await finishUnlock(dk);
+  }
+
+  async function finishUnlock(dk) {
+    const errEl = $('unlockErr');
+    if (pendingRestore) {
+      // 上書きバックアップから起動：前回データを削除して置き換える
+      const ok = confirm('前回のデータは削除され、選んだ上書きバックアップの内容で置き換わります。\n\nよろしいですか？');
+      if (!ok) { errEl.textContent = '取り込みを中止しました。「上書き用バックアップ」の選択を外すか、そのまま開くと通常起動します。'; dk.fill(0); return; }
+      const wrapper = pendingRestore.file;
+      let restored, useDk = dk, useVault = vault;
+      try {
+        if (isV5File(wrapper)) {
+          if (wrapper.vaultId !== vault.vaultId) {
+            // 別の金庫のバックアップ → そのファイルの鍵で開き、鍵ごと置き換える
+            useDk = await askOpen(wrapper.wraps, '上書きバックアップを開く', '別の鍵で作られたバックアップです。そのときのパスキーか復元キーで開いてください。');
+            if (!useDk) { errEl.textContent = '取り込みを中止しました。'; dk.fill(0); return; }
+            useVault = { version:5, vaultId:wrapper.vaultId, wraps:wrapper.wraps };
+          }
+          restored = await decryptJSON(await importDK(useDk), wrapper);
+        } else {
+          restored = await decryptImport(wrapper);     // 古い形（V1）のバックアップ：パスワードを聞く
+          if (restored === null) { errEl.textContent = '取り込みを中止しました。'; dk.fill(0); return; }
+        }
+      } catch {
+        errEl.textContent = 'このバックアップを開けませんでした（鍵が違う可能性があります）。';
+        return;
+      }
+      if (useDk !== dk) dk.fill(0);
+      if (!restored.name) restored.name = wrapper.name || 'snippet-book';
+      vault = useVault;
+      await openSession(useDk);
+      book = normalize(toBook(restored, pendingRestore.fname));
+      await persist();               // 端末に新しい内容を保存（上書き）
+      await saveVaultMeta();
+      clearRestore();
+      enterApp();
+      setStatus('上書きバックアップで起動しました');
+      return;
+    }
+
+    // 通常起動：前回データで開く
+    await openSession(dk);
+    try {
+      const dataRaw = await store.get(DATA5_KEY);
+      book = normalize(await decryptJSON(cryptoKey, JSON.parse(dataRaw.value)));
+    } catch { book = normalize(SEED); await persist(); }
+    enterApp();
+  }
+
+  /* 上書きバックアップ・ファイル選択 */
+  function clearRestore() {
+    pendingRestore = null;
+    const rfn = $('restoreFileName');
+    if (rfn) { rfn.textContent = '選択なし'; rfn.classList.remove('set'); }
+  }
+  $('restorePick').addEventListener('click', () => $('restoreFile').click());
+  $('restoreFile').addEventListener('change', async e => {
+    const file = e.target.files[0]; e.target.value = '';
+    const nameEl = $('restoreFileName');
+    const errEl = $('unlockErr');
+    if (!file) return;
+    errEl.textContent = 'ファイルを確認しています…';
+    try {
+      const data = JSON.parse(await file.text());
+      // 上書き用バックアップの印を確認（暗号ファイルはラッパー側に付く）
+      if (data.role !== OVERWRITE_MARK) {
+        errEl.textContent = 'これは「上書き用バックアップ」ではありません。ヘッダの「バックアップしてロック」で作ったファイルを選んでください。';
+        clearRestore();
+        return;
+      }
+      // 開けるのは「パスキーで開く」か「復元キーで開く」を押したとき（finishUnlock）
+      pendingRestore = { file: data, fname: file.name };
+      nameEl.textContent = `${file.name}（データ名: ${data.name || '不明'}）`;
+      nameEl.classList.add('set');
+      errEl.textContent = '取り込み準備OK。パスキーか復元キーで開いてください。';
+    } catch (err) {
+      errEl.textContent = '読み込めませんでした：' + err.message;
+      clearRestore();
+    }
+  });
+
+  /* ---------- V1（マスターパスワード）からの引っ越し ---------- */
+  $('migrateBtn').addEventListener('click', migrateFromV1);
+  $('migratePw').addEventListener('keydown', e => { if (e.key === 'Enter') migrateFromV1(); });
+  async function migrateFromV1() {
+    const errEl = $('migrateErr');
+    const password = $('migratePw').value;
+    if (!password) { errEl.textContent = 'マスターパスワードを入力してください'; return; }
+    errEl.textContent = '確認しています…';
+    let content;
+    try {
+      const meta = await loadJSON(META_KEY);
+      const key = await deriveKey(password, new Uint8Array(b64.dec(meta.salt)), PBKDF2_ITER_OLD);
+      await decryptJSON(key, meta.verifier);   // 失敗すれば throw
+      try {
+        const dataRaw = await store.get(DATA_KEY);
+        content = await decryptJSON(key, JSON.parse(dataRaw.value));
+      } catch { content = SEED; }
+    } catch {
+      errEl.textContent = 'パスワードが違います';
+      return;
+    }
+    $('migratePw').value = '';
+    errEl.textContent = '';
+    try {
+      if (!(await startNewVault(normalize(content), 'migrate'))) {
+        errEl.textContent = '引っ越しをやめました。古いデータはそのまま残っています。';
+        return;
+      }
+      // 新しい形で読み戻せることを確かめてから、古い形を消す
+      const check = await decryptJSON(cryptoKey, JSON.parse((await store.get(DATA5_KEY)).value));
+      if (JSON.stringify(normalize(check)) !== JSON.stringify(book)) throw new Error('読み戻した中身が一致しません');
+      await store.delete(META_KEY);
+      await store.delete(DATA_KEY);
+      markNeedsBackup();
+      setStatus('新しい方式へ移りました。古い形のバックアップは取り込みのときだけマスターパスワードで開けます。新しい形でバックアップを取り直してください');
+      await offerPasskey();
+    } catch (e) {
+      setStatus('引っ越しの確かめでつまずきました（古いデータは消していません）：' + e.message, true);
+    }
+  }
+
+  /* ---------- 全部なくした ---------- */
+  async function resetAll() {
+    if (!confirm('パスキーも復元キーも無いときは、暗号化された中身をすべて削除して作り直すしかありません。\n\n中身は復元できません。続けますか？')) return;
+    if (!confirm('本当によろしいですか？ この端末に保存されているすべてのカードが消えます。')) return;
+    for (const k of [META5_KEY, DATA5_KEY, META_KEY, DATA_KEY]) { try { await store.delete(k); } catch {} }
+    cryptoKey = null; if (dkRaw) dkRaw.fill(0); dkRaw = null; vault = null;
+    book = { sets:[], active:0, name:'snippet-book' };
+    await boot();
+    $('setupErr').textContent = 'リセットしました。新しく作るか、バックアップから始めてください。';
+  }
+  $('forgotBtn').addEventListener('click', resetAll);
+  $('forgotOldBtn').addEventListener('click', resetAll);
+
+  /* ---------- 鍵の設定（開いた後） ---------- */
+  function fmtDate(t) { const d = new Date(t); return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`; }
+  function renderKeys() {
+    const pks = passkeyWraps(vault);
+    $('keysSub').textContent = `データ名：${book.name || 'snippet-book'}　／　パスキー ${pks.length} 件`;
+    const ul = $('pkList');
+    ul.innerHTML = '';
+    if (!pks.length) {
+      ul.innerHTML = '<li class="pk-empty">まだありません。復元キーで開いています。</li>';
+    }
+    pks.forEach(w => {
+      const li = document.createElement('li');
+      li.innerHTML = `<span class="pk-name">${esc(w.label)}</span><span class="pk-date">${fmtDate(w.created)}</span>`;
+      const del = document.createElement('button');
+      del.className = 'cred-copy'; del.textContent = '外す';
+      del.addEventListener('click', async () => {
+        if (!confirm(`パスキー「${w.label}」を外しますか？\n\nこのパスキーでは開けなくなります。端末のパスワード管理に残る「スニペット帳」のパスキーは、そちらで消してください。`)) return;
+        vault.wraps = vault.wraps.filter(x => x !== w);
+        await saveVaultMeta();
+        markNeedsBackup();
+        renderKeys();
+        showToast('パスキーを外しました');
+      });
+      li.appendChild(del);
+      ul.appendChild(li);
+    });
+    $('addPasskeyBtn').disabled = !passkeyBase;
+    $('keysErr').textContent = passkeyBase ? '' : 'この開き方（アドレス）ではパスキーを登録できません。https のアドレスで開いてください。';
+  }
+  $('keysBtn').addEventListener('click', () => { renderKeys(); $('keysOverlay').classList.remove('hidden'); });
+  $('keysClose').addEventListener('click', () => $('keysOverlay').classList.add('hidden'));
+  $('addPasskeyBtn').addEventListener('click', async () => {
+    $('keysErr').textContent = '';
+    try { await addPasskey(); renderKeys(); }
+    catch (e) { $('keysErr').textContent = passkeyErrText(e); }
+  });
+  $('regenRkBtn').addEventListener('click', async () => {
+    const rk = genRecoveryKey();
+    if (!(await showRecoveryKey(rk, 'regen'))) return;
+    vault.wraps = vault.wraps.filter(w => w.type !== 'recovery').concat(await makeRecoveryWrap(dkRaw, rk));
+    await saveVaultMeta();
+    markNeedsBackup();
+    renderKeys();
+    showToast('復元キーを作り直しました');
+    setStatus('復元キーを作り直しました。新しい形でバックアップを取り直してください');
+  });
+  $('rekeyBtn').addEventListener('click', async () => {
+    if (!confirm('鍵をすべて作り直します。\n\n・新しい復元キーを作ります\n・登録したパスキーはすべて外れます（あとで登録し直します）\n・前に書き出したバックアップは、そのときのパスキーか復元キーでしか開けません\n\n続けますか？')) return;
+    const oldVault = vault, oldDk = dkRaw;
+    $('keysOverlay').classList.add('hidden');
+    try {
+      if (!(await startNewVault(book, 'rekey'))) { vault = oldVault; return; }
+      if (oldDk) oldDk.fill(0);
+      markNeedsBackup();
+      setStatus('鍵をすべて作り直しました。新しい形でバックアップを取り直し、パスワード管理に残る古い「スニペット帳」のパスキーは消してください');
+      await offerPasskey();
+    } catch (e) {
+      vault = oldVault;
+      setStatus('作り直せませんでした：' + e.message, true);
+    }
+  });
+
+  function enterApp() {
+    lockScreen.classList.add('hidden');
+    appEl.classList.remove('hidden');
+    hint.innerHTML = viewOnly
+      ? '📄 読み込むだけのモードです。カードをタップするとコピーできます（この端末には保存されません）。'
+      : isTouch
+        ? 'カードをタップするとコピーできます。編集は上の「編集」から。'
+        : `<kbd>${MOD}</kbd>+<kbd>1</kbd>…<kbd>9</kbd> でコピー · <kbd>${MOD}</kbd>+<kbd>0</kbd> は10番 · 表示中のセットが対象`;
+
+    // 閲覧専用: 編集・書き出し・破壊的操作を隠す
+    const editToggle = document.getElementById('modeEdit');
+    const footerTools = document.querySelector('.footer-tools');
+    const resetBtn = document.getElementById('reset');
+    const backupExitBtn = document.getElementById('backupExit');
+    const keysBtn = document.getElementById('keysBtn');
+    const dataNameInput = document.getElementById('dataName');
+    dataNameInput.value = book.name || 'snippet-book';
+    if (viewOnly) {
+      editToggle.style.display = 'none';
+      footerTools.style.display = 'none';
+      resetBtn.style.display = 'none';
+      backupExitBtn.style.display = 'none';
+      keysBtn.style.display = 'none';
+      dataNameInput.disabled = true;
+      document.getElementById('lockNow').textContent = '✕ 閉じる';
+      setMode('copy');
+    } else {
+      editToggle.style.display = '';
+      footerTools.style.display = '';
+      resetBtn.style.display = '';
+      backupExitBtn.style.display = '';
+      keysBtn.style.display = '';
+      dataNameInput.disabled = false;
+      document.getElementById('lockNow').textContent = '🔒 ロック';
+    }
+    document.getElementById('backupBanner').classList.remove('show');
+    if (!viewOnly) updateBackupBanner();
+    render();
+    setStatus(viewOnly ? '読み込みました（保存はされません）' : 'ロックを解除しました');
+  }
+
+  /* データ名の編集 */
+  document.getElementById('dataName').addEventListener('input', e => {
+    if (viewOnly) return;
+    book.name = e.target.value || 'snippet-book';
+    save();
+  });
+  document.getElementById('dataName').addEventListener('blur', e => {
+    if (!e.target.value.trim()) { e.target.value = 'snippet-book'; book.name = 'snippet-book'; save(); }
+  });
+
+  function lockNow() {
+    cryptoKey = null;
+    if (dkRaw) dkRaw.fill(0);
+    dkRaw = null;
+    ['keysOverlay','openOverlay','rkOverlay'].forEach(id => document.getElementById(id).classList.add('hidden'));
+    appEl.classList.add('hidden');
+    lockScreen.classList.remove('hidden');
+    if (viewOnly) {
+      // 閲覧専用: 中身を破棄して閲覧カードへ戻る
+      book = { sets: [], active: 0 };
+      viewOnly = false;
+      showCard(document.getElementById('viewCard'));
+      document.getElementById('viewErr').textContent = '';
+    } else {
+      book = { sets: [], active: 0, name: 'snippet-book' };
+      clearRestore();
+      boot();
+    }
+  }
+  document.getElementById('lockNow').addEventListener('click', lockNow);
+
+  /* ---------- view-only navigation ---------- */
+  function showViewCard() {
+    showCard(document.getElementById('viewCard'));
+    document.getElementById('viewErr').textContent = '';
+  }
+  function backFromView() {
+    document.getElementById('viewCard').classList.add('hidden');
+    // 元の状態（初回ならsetup、既存ならunlock）へ戻す
+    boot();
+  }
+  const tv = document.getElementById('toView'); if (tv) tv.addEventListener('click', showViewCard);
+  const tvs = document.getElementById('toViewFromSetup'); if (tvs) tvs.addEventListener('click', showViewCard);
+  const tvm = document.getElementById('toViewFromMigrate'); if (tvm) tvm.addEventListener('click', showViewCard);
+  const vb = document.getElementById('viewBack'); if (vb) vb.addEventListener('click', backFromView);
+
+  document.getElementById('viewPick').addEventListener('click', () => document.getElementById('viewFile').click());
+  document.getElementById('viewFile').addEventListener('change', async e => {
+    const file = e.target.files[0]; e.target.value = '';
+    if (!file) return;
+    const errEl = document.getElementById('viewErr');
+    errEl.textContent = '読み込んでいます…';
+    try {
+      let data = JSON.parse(await file.text());
+      if (isV5File(data) || isV4File(data)) {
+        data = await decryptImport(data);       // パスキー・復元キー・パスワードのどれかで開く
+        if (data === null) { errEl.textContent = ''; return; }  // キャンセル
+      }
+      const b = toBook(data, file.name);
+      book = normalize({ sets: b.sets.map(normalizeSet), active: 0, name: b.name });
+      viewOnly = true;
+      errEl.textContent = '';
+      enterApp();
+    } catch (err) {
+      errEl.textContent = '読み込めませんでした：' + err.message;
+    }
+  });
+
+  /* =========================================================
+     Data persistence (encrypted)
+     ========================================================= */
+  function normalize(b) {
+    const sets = (b.sets || []).map(s => ({
+      name: s.name || '無名',
+      items: (s.items || []).map(o => ({
+        id:o.id || uid(), title:o.title || '', text:o.text || '',
+        user: o.user || '', secret: !!o.secret,
+      })),
+    }));
+    if (!sets.length) sets.push({ name:'メモ', items:[] });
+    let active = Number.isInteger(b.active) ? b.active : 0;
+    if (active < 0 || active >= sets.length) active = 0;
+    const name = (b.name && String(b.name).trim()) ? String(b.name).trim() : 'snippet-book';
+    return { sets, active, name };
+  }
+  function activeSet() { return book.sets[book.active]; }
+  // 読み込んだ中身（全体・1セット・配列）を book の形にそろえる
+  function toBook(data, fname) {
+    if (data && Array.isArray(data.sets)) return data;
+    if (data && (data.kind === 'set' || Array.isArray(data.items))) return { sets:[normalizeSet(data)], active:0, name:data.name };
+    if (Array.isArray(data)) return { sets:[{ name:String(fname || '読み込み').replace(/\.(enc\.)?json$/i,''), items:data }], active:0 };
+    throw new Error('形式が認識できません');
+  }
+
+  /* ファイル名用: データ名 + 日付。ファイル名に使えない文字を除去 */
+  function safeFileBase() {
+    const nm = (book.name || 'snippet-book').replace(/[\\\/:*?"<>|]+/g,'').replace(/\s+/g,'_').trim() || 'snippet-book';
+    const d = new Date();
+    const p = n => String(n).padStart(2,'0');
+    const date = `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}`;
+    return { nm, date, stamp: `${nm}-${date}` };
+  }
+
+  async function persist() {
+    if (!cryptoKey) return;
+    const blob = await encryptJSON(cryptoKey, book);
+    await store.set(DATA5_KEY, JSON.stringify(blob));
+  }
+  function save() {
+    if (viewOnly) return;   // 閲覧専用モードでは保存しない
+    dirtySinceBackup = true;
+    updateBackupBanner();
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(async () => {
+      try { await persist(); setStatus(`保存しました · ${activeSet().items.length} 件 / ${book.sets.length} セット`); }
+      catch { setStatus('この端末に保存できませんでした。バックアップを取ってください', true); }
+    }, 300);
+  }
+  function setStatus(msg, isError) {
+    const s = document.getElementById('status');
+    s.textContent = msg; s.classList.toggle('error', !!isError);
+  }
+
+  /* ---------- backup reminder banner ---------- */
+  function getLastBackup() {
+    try { const v = localStorage.getItem(LASTBACKUP_KEY); return v ? parseInt(v,10) : 0; } catch { return 0; }
+  }
+  function setLastBackup(t) {
+    try { localStorage.setItem(LASTBACKUP_KEY, String(t)); } catch {}
+  }
+  function updateBackupBanner() {
+    if (viewOnly) return;
+    const banner = document.getElementById('backupBanner');
+    const msg = document.getElementById('backupMsg');
+    if (!banner) return;
+    const last = getLastBackup();
+    const days = last ? Math.floor((Date.now() - last) / 86400000) : null;
+    let show = false, text = '';
+    if (dirtySinceBackup) {
+      show = true;
+      text = '<b>変更があります。</b>バックアップを取ると、万一データが消えても復元できます。';
+    } else if (last === 0) {
+      show = true;
+      text = 'まだ一度もバックアップしていません。念のためバックアップをおすすめします。';
+    } else if (days !== null && days >= BACKUP_STALE_DAYS) {
+      show = true;
+      text = `<b>前回のバックアップから ${days} 日</b>経っています。スマホは保存が消えることがあるため、バックアップをおすすめします。`;
+    }
+    banner.classList.toggle('show', show);
+    if (show) msg.innerHTML = text;
+  }
+
+  /* =========================================================
+     Clipboard
+     ========================================================= */
+  async function writeClip(txt) {
+    try { await navigator.clipboard.writeText(txt); return true; }
+    catch {
+      const ta = document.createElement('textarea');
+      ta.value = txt; ta.style.position='fixed'; ta.style.opacity='0';
+      document.body.appendChild(ta); ta.select();
+      let ok = false; try { ok = document.execCommand('copy'); } catch {}
+      ta.remove(); return ok;
+    }
+  }
+  async function copyText(txt, index, label) {
+    if (!txt) { showToast('中身が空です', true); return; }
+    const ok = await writeClip(txt);
+    if (!ok) { showToast('コピーできませんでした', true); return; }
+    if (index != null) stamp(index);
+    showToast(label);
+  }
+  function stamp(index) {
+    const card = document.querySelector(`.card[data-index="${index}"]`);
+    if (!card) return;
+    card.classList.remove('stamped'); void card.offsetWidth; card.classList.add('stamped');
+  }
+  let toastTimer;
+  function showToast(msg, isError) {
+    toast.textContent = msg;
+    toast.style.background = isError ? 'var(--seal)' : 'var(--ink)';
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 1600);
+  }
+  const peekTimers = {};
+  function peek(id) {
+    peeking.add(id); render();
+    clearTimeout(peekTimers[id]);
+    peekTimers[id] = setTimeout(() => { peeking.delete(id); render(); }, 3000);
+  }
+
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  /* =========================================================
+     Render
+     ========================================================= */
+  const list = document.getElementById('cards');
+  const setsEl = document.getElementById('sets');
+  const search = document.getElementById('search');
+  const addBtn = document.getElementById('add');
+  const addSec = document.getElementById('addSecret');
+  const hint = document.getElementById('hint');
+  const toast = document.getElementById('toast');
+
+  function renderSets() {
+    setsEl.innerHTML = '';
+    book.sets.forEach((s, i) => {
+      const t = document.createElement('button');
+      t.className='set-tab'; t.textContent=s.name; t.setAttribute('role','tab');
+      t.setAttribute('aria-selected', i === book.active);
+      t.addEventListener('click', () => {
+        if (mode === 'edit' && i === book.active) { renameSet(i); return; }
+        book.active = i; peeking.clear(); save(); render();
+      });
+      setsEl.appendChild(t);
+    });
+    if (mode === 'edit') {
+      const add = document.createElement('button');
+      add.className='set-add'; add.textContent='+'; add.title='セットを追加';
+      add.addEventListener('click', addSet); setsEl.appendChild(add);
+      if (book.sets.length > 1) {
+        const del = document.createElement('button');
+        del.className='set-add'; del.textContent='×'; del.title='このセットを削除';
+        del.style.color='var(--seal)'; del.addEventListener('click', deleteSet); setsEl.appendChild(del);
+      }
+    }
+  }
+
+  function render() {
+    renderSets();
+    const items = activeSet().items;
+    const q = search.value.trim().toLowerCase();
+    list.innerHTML = '';
+    if (!items.length) {
+      list.innerHTML = `<div class="empty"><p>このセットにはカードがありません。</p><p>編集モードで追加してください。</p></div>`;
+      return;
+    }
+    let shown = 0;
+    items.forEach((item, i) => {
+      const hay = item.secret ? (item.title + ' ' + (item.user||'')) : (item.title + ' ' + item.text);
+      if (q && !hay.toLowerCase().includes(q)) return;
+      shown++; list.appendChild(cardEl(item, i));
+    });
+    if (!shown) list.innerHTML = `<div class="empty"><p>一致するカードはありません。</p></div>`;
+  }
+
+  function cardEl(item, i) {
+    const items = activeSet().items;
+    const card = document.createElement('article');
+    card.className = 'card' + (item.secret ? ' secret' : '') + (i > 9 ? ' nokey' : '');
+    card.dataset.index = i;
+
+    const tab = document.createElement('div');
+    tab.className='tab';
+    tab.innerHTML = `<span>${i===9?'0':i+1}</span>`;
+    tab.title = i<10 ? `${MOD} + ${i===9?'0':i+1}` : 'ショートカットなし';
+    card.appendChild(tab);
+
+    const body = document.createElement('div');
+    body.className = 'body';
+
+    if (mode === 'copy') {
+      if (item.secret) {
+        // ID + password, two separate copy buttons
+        const revealed = peeking.has(item.id);
+        const label = document.createElement('div');
+        label.className = 'label';
+        label.innerHTML = `${esc(item.title || '（無題）')}<span class="badge">秘匿</span>`;
+        const cred = document.createElement('div');
+        cred.className = 'cred';
+
+        // ID row
+        const idRow = document.createElement('div');
+        idRow.className = 'cred-row';
+        idRow.innerHTML = `<span class="k">ID</span><span class="v">${item.user ? esc(item.user) : '<span style="color:var(--seal);font-style:italic">未設定</span>'}</span>`;
+        const idBtn = document.createElement('button');
+        idBtn.className='cred-copy'; idBtn.textContent='コピー';
+        idBtn.title = `${MOD}+${i===9?'0':i+1} は ID をコピー`;
+        idBtn.addEventListener('click', e => { e.stopPropagation(); copyText(item.user, i, `${item.title||'ID'} の ID をコピー`); });
+        idRow.appendChild(idBtn);
+
+        // PW row
+        const pwRow = document.createElement('div');
+        pwRow.className = 'cred-row';
+        const pwVal = !item.text ? '<span style="color:var(--seal);font-style:italic">未設定</span>'
+                    : revealed ? esc(item.text)
+                    : `<span class="masked">${'●'.repeat(Math.min(item.text.length,14))}</span>`;
+        pwRow.innerHTML = `<span class="k">PW</span><span class="v">${pwVal}</span>`;
+        const eyeBtn = document.createElement('button');
+        eyeBtn.className='cred-copy'; eyeBtn.textContent='👁';
+        eyeBtn.title='3秒だけ表示';
+        eyeBtn.addEventListener('click', e => { e.stopPropagation(); peek(item.id); });
+        const pwBtn = document.createElement('button');
+        pwBtn.className='cred-copy'; pwBtn.textContent='コピー';
+        pwBtn.addEventListener('click', e => { e.stopPropagation(); copyText(item.text, i, `${item.title||'PW'} のパスワードをコピー`); });
+        if (item.text) pwRow.appendChild(eyeBtn);
+        pwRow.appendChild(pwBtn);
+
+        cred.append(idRow, pwRow);
+        body.append(label, cred);
+      } else {
+        body.classList.add('plainrow');
+        body.tabIndex = 0; body.setAttribute('role','button');
+        body.setAttribute('aria-label', `${item.title} をコピー`);
+        const inner = item.text ? `<pre class="snippet">${esc(item.text)}</pre>` : `<pre class="snippet unset">未入力 — 編集モードで登録</pre>`;
+        body.innerHTML = `<div class="label">${esc(item.title || '（無題）')}</div>` + inner;
+        body.addEventListener('click', () => copyText(item.text, i, 'コピー ' + (item.text.length>40?item.text.slice(0,40)+'…':item.text)));
+        body.addEventListener('keydown', e => { if (e.key==='Enter'||e.key===' ') { e.preventDefault(); copyText(item.text, i, 'コピーしました'); } });
+      }
+    } else {
+      // edit mode
+      const title = document.createElement('input');
+      title.className='field title'; title.value=item.title; title.placeholder='この行の説明';
+      title.addEventListener('input', () => { item.title=title.value; save(); });
+      body.appendChild(title);
+
+      if (item.secret) {
+        const ul = document.createElement('div'); ul.className='subfield-label'; ul.textContent='ID / ユーザー名';
+        const user = document.createElement('input');
+        user.className='field user'; user.value=item.user||''; user.placeholder='ユーザー名・メールアドレスなど'; user.autocomplete='off';
+        user.addEventListener('input', () => { item.user=user.value; save(); });
+        const pl = document.createElement('div'); pl.className='subfield-label'; pl.textContent='パスワード（画面に表示されません）';
+        const pw = document.createElement('input');
+        pw.className='field text'; pw.type='password'; pw.value=item.text; pw.placeholder='パスワード'; pw.autocomplete='off';
+        pw.addEventListener('input', () => { item.text=pw.value; save(); });
+        body.append(ul, user, pl, pw);
+      } else {
+        const text = document.createElement('textarea');
+        text.className='field text'; text.value=item.text; text.placeholder='コピーしたいテキスト';
+        text.rows = Math.min(5, item.text.split('\n').length + 1);
+        text.addEventListener('input', () => { item.text=text.value; save(); });
+        body.appendChild(text);
+      }
+
+      const opts = document.createElement('div');
+      opts.className='opts';
+      const secWrap = document.createElement('label');
+      const secBox = document.createElement('input');
+      secBox.type='checkbox'; secBox.checked=item.secret;
+      secBox.addEventListener('change', () => { item.secret=secBox.checked; save(); render(); });
+      secWrap.append(secBox, document.createTextNode('ID/パスワード（伏字・2行コピー）'));
+      opts.appendChild(secWrap);
+      body.appendChild(opts);
+    }
+    card.appendChild(body);
+
+    const actions = document.createElement('div');
+    actions.className='actions';
+    if (mode === 'edit') {
+      actions.append(
+        iconBtn('↑','上へ移動', i===0, () => move(i,-1)),
+        iconBtn('↓','下へ移動', i===items.length-1, () => move(i,1)),
+        iconBtn('✕','削除', false, () => remove(i), true),
+      );
+    }
+    card.appendChild(actions);
+
+    const stampEl = document.createElement('div');
+    stampEl.className='seal-stamp'; stampEl.textContent='コピー済';
+    card.appendChild(stampEl);
+    return card;
+  }
+
+  function iconBtn(glyph, label, disabled, fn, danger) {
+    const b = document.createElement('button');
+    b.className='icon' + (danger?' danger':'');
+    b.textContent=glyph; b.title=label; b.setAttribute('aria-label',label);
+    if (disabled) b.disabled=true;
+    b.addEventListener('click', fn);
+    return b;
+  }
+
+  /* ---------- card mutations ---------- */
+  function move(i, d) {
+    const items = activeSet().items; const j=i+d;
+    if (j<0||j>=items.length) return;
+    [items[i],items[j]]=[items[j],items[i]]; save(); render();
+  }
+  function remove(i) { activeSet().items.splice(i,1); save(); render(); }
+  function addCard(secret) {
+    activeSet().items.push({ id:uid(), title:'', text:'', user:'', secret });
+    search.value=''; save(); render();
+    const f = list.querySelectorAll('.field.title');
+    f[f.length-1]?.focus();
+  }
+  addBtn.addEventListener('click', () => addCard(false));
+  addSec.addEventListener('click', () => addCard(true));
+
+  /* ---------- set mutations ---------- */
+  function addSet() {
+    const name=(prompt('新しいセットの名前','')||'').trim();
+    if (!name) return;
+    book.sets.push({ name, items:[] }); book.active=book.sets.length-1; save(); render();
+  }
+  function renameSet(i) {
+    const name=(prompt('セット名を変更', book.sets[i].name)||'').trim();
+    if (!name) return;
+    book.sets[i].name=name; save(); render();
+  }
+  function deleteSet() {
+    if (book.sets.length<=1) return;
+    if (!confirm(`セット「${activeSet().name}」を削除します。中のカードもすべて消えます。よろしいですか？`)) return;
+    book.sets.splice(book.active,1);
+    if (book.active>=book.sets.length) book.active=book.sets.length-1;
+    save(); render();
+  }
+
+  /* ---------- download helpers ---------- */
+  function downloadBlob(filename, text, type) {
+    const blob = new Blob([text], { type: type || 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download=filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  function downloadJSON(filename, obj) { downloadBlob(filename, JSON.stringify(obj,null,2)); }
+
+  function fullBook(inc) {
+    return { version:4, kind:'book', name: book.name || 'snippet-book',
+      sets: book.sets.map(s => ({
+      name:s.name, items:s.items.map(o => ({
+        title:o.title, user:o.user||'', text:(o.secret&&!inc)?'':o.text, secret:o.secret,
+      })),
+    })) };
+  }
+
+  /* ---------- plaintext export (menu) ---------- */
+  document.getElementById('exportSet').addEventListener('click', () => {
+    const choice = prompt('平文で書き出します（中身が見える状態のファイルです）。\n\n1 = このセットだけ\n2 = 全セット\n\n番号を入力:', '1');
+    if (choice === null) return;
+    const inc = confirm('パスワードの中身も含めますか？\n\n「OK」= 含める（平文で書かれます）\n「キャンセル」= 空にして書き出す');
+    if (choice.trim() === '2') {
+      downloadJSON('snippets-all.json', fullBook(inc));
+      setStatus(`全 ${book.sets.length} セットを平文で書き出しました`);
+    } else {
+      const set = activeSet();
+      const safe=(set.name||'set').replace(/[^\w\-]+/g,'_');
+      downloadJSON(`snippets-${safe}.json`, { version:4, kind:'set',
+        name:set.name, items:set.items.map(o=>({ title:o.title, user:o.user||'', text:(o.secret&&!inc)?'':o.text, secret:o.secret })) });
+      setStatus(`「${set.name}」を平文で書き出しました`);
+    }
+  });
+
+  /* ---------- ENCRYPTED export ---------- */
+  document.getElementById('exportEnc').addEventListener('click', async () => {
+    const useOwn = confirm('暗号化して書き出します。\n\n「OK」= このファイル専用のパスワードを設定する（人に渡すときなど）\n「キャンセル」= このアプリの鍵（パスキー・復元キー）で開ける形にする（ふだんのバックアップ）');
+    const fname = `${safeFileBase().stamp}-backup.enc.json`;
+    if (useOwn) {
+      const p1 = prompt('このファイル専用のパスワードを入力（8文字以上）:');
+      if (p1 === null) return;
+      if (p1.length < 8) { showToast('8文字以上にしてください', true); return; }
+      const p2 = prompt('確認のためもう一度入力:');
+      if (p2 === null) return;
+      if (p1 !== p2) { showToast('2つの入力が一致しません', true); return; }
+      downloadJSON(fname, await makePwFile(p1, fullBook(true), { mode:'own', name:book.name }));
+    } else {
+      if (!cryptoKey || !vault) { showToast('先にロックを解除してください', true); return; }
+      downloadJSON(fname, await makeV5File(vault, cryptoKey, fullBook(true), { mode:'vault', name:book.name }));
+    }
+    setStatus('暗号化バックアップを書き出しました');
+    showToast('暗号化して書き出しました');
+  });
+
+  /* ---------- BACKUP (overwrite backup, marked) ---------- */
+  async function writeOverwriteBackup() {
+    if (!cryptoKey || !vault) { showToast('先にロックを解除してください', true); return null; }
+    const fname = `${safeFileBase().stamp}-上書きバックアップ.enc.json`;
+    downloadJSON(fname, await makeV5File(vault, cryptoKey, fullBook(true), {
+      mode:'vault',
+      role: OVERWRITE_MARK,          // ← 上書き用の識別印
+      name: book.name,
+    }));
+    // バックアップ完了 → 変更フラグを下ろし、時刻を記録
+    dirtySinceBackup = false;
+    setLastBackup(Date.now());
+    updateBackupBanner();
+    return fname;
+  }
+
+  // ヘッダ「バックアップしてロック」: バックアップ → 完了ダイアログ → ロック
+  document.getElementById('backupExit').addEventListener('click', async () => {
+    const fname = await writeOverwriteBackup();
+    if (!fname) return;
+    document.getElementById('exitFileName').textContent = `保存したファイル: ${fname}`;
+    document.getElementById('exitOverlay').classList.remove('hidden');
+    setStatus('上書きバックアップを書き出しました');
+  });
+  document.getElementById('exitDone').addEventListener('click', () => {
+    document.getElementById('exitOverlay').classList.add('hidden');
+    lockNow();   // ロック画面（解除待ち）へ戻る
+  });
+
+  // バナー「今すぐバックアップ」: バックアップのみ（ダイアログなし）
+  document.getElementById('backupNow').addEventListener('click', async () => {
+    const fname = await writeOverwriteBackup();
+    if (!fname) return;
+    showToast('バックアップしました');
+    setStatus(`バックアップしました: ${fname}`);
+  });
+
+  /* ---------- SEND one set (auto random password, reveal dialog) ---------- */
+  function sanitizeName(name) {
+    // ファイル名に使えるように整える。日本語も可能な範囲で残す。
+    const cleaned = (name || 'set').replace(/[\\\/:*?"<>|]+/g, '').replace(/\s+/g, '_').trim();
+    return cleaned || 'set';
+  }
+  document.getElementById('sendSet').addEventListener('click', async () => {
+    const set = activeSet();
+    if (!set.items.length) { showToast('このセットは空です', true); return; }
+    // 毎回新しいランダムパスワードを強制生成
+    const filePw = genPassphrase();
+    const payload = { version:4, kind:'set', name:set.name,
+      items: set.items.map(o => ({ title:o.title, user:o.user||'', text:o.text, secret:o.secret })) };
+    const fname = `${sanitizeName(set.name)}-${safeFileBase().date}-shared.enc.json`;
+    downloadJSON(fname, await makePwFile(filePw, payload, { mode:'own', set:set.name }));
+
+    // reveal password once
+    document.getElementById('sendFileName').textContent = `ファイル: ${fname}  ／  セット: ${set.name}`;
+    document.getElementById('sendPw').textContent = filePw;
+    document.getElementById('sendOverlay').classList.remove('hidden');
+    setStatus(`「${set.name}」を暗号化して書き出しました`);
+  });
+  document.getElementById('sendCopy').addEventListener('click', async () => {
+    const pw = document.getElementById('sendPw').textContent;
+    const ok = await writeClip(pw);
+    const b = document.getElementById('sendCopy');
+    b.textContent = ok ? 'コピーしました' : 'コピー不可';
+    setTimeout(() => { b.textContent = 'コピー'; }, 1500);
+  });
+  document.getElementById('sendDone').addEventListener('click', () => {
+    document.getElementById('sendOverlay').classList.add('hidden');
+    document.getElementById('sendPw').textContent = '—';   // 画面から消す
+  });
+
+  /* ---------- import (auto-detect plaintext / encrypted) ---------- */
+  document.getElementById('importBtn').addEventListener('click', () => document.getElementById('importFile').click());
+  document.getElementById('importFile').addEventListener('change', async e => {
+    const file=e.target.files[0]; e.target.value='';
+    if (!file) return;
+    try {
+      const raw = await file.text();
+      let data = JSON.parse(raw);
+
+      // encrypted file?
+      if (isV5File(data) || isV4File(data)) {
+        data = await decryptImport(data);
+        if (data === null) return; // cancelled
+      }
+
+      let added=0;
+      const push = s => { book.sets.push(normalizeSet(s)); added++; };
+      if (Array.isArray(data.sets)) data.sets.forEach(push);
+      else if (data.kind==='set' || Array.isArray(data.items)) push(data);
+      else if (Array.isArray(data)) push({ name:file.name.replace(/\.(enc\.)?json$/i,''), items:data });
+      else throw new Error('形式が認識できません');
+      book.active=book.sets.length-1; save(); render();
+      setStatus(`読み込みました · ${added} セットを追加`);
+      showToast(`${added} セットを追加しました`);
+    } catch (err) {
+      setStatus('読み込めませんでした：'+err.message, true);
+      showToast('読み込めませんでした', true);
+    }
+  });
+
+  // 暗号ファイルを開く。V2 の形はパスキーか復元キー、V1 の形とファイル専用パスワードはパスワードを聞く
+  async function decryptImport(data) {
+    if (isV5File(data)) {
+      // 今開いている金庫と同じ鍵なら、そのまま開く
+      if (cryptoKey && vault && data.vaultId === vault.vaultId) {
+        try { return await decryptJSON(cryptoKey, data); } catch {}
+      }
+      const dk = await askOpen(data.wraps, 'このファイルを開く', `データ名：${data.name || '不明'}`);
+      if (!dk) return null;
+      try { return await decryptJSON(await importDK(dk), data); } finally { dk.fill(0); }
+    }
+    // otherwise ask for a password (up to 3 tries)
+    for (let i = 0; i < 3; i++) {
+      const pw = prompt(data.mode === 'own'
+        ? 'このファイルに設定したパスワードを入力:'
+        : 'このファイルは古い形（V1）です。そのときのマスターパスワードを入力:');
+      if (pw === null) return null;
+      try {
+        return await openV4File(data, pw);
+      } catch {
+        showToast('パスワードが違います', true);
+      }
+    }
+    throw new Error('復号できませんでした');
+  }
+
+  function normalizeSet(s) {
+    return { name:(s.name||'読み込み').toString(), items:(s.items||[]).map(o => ({
+      id:uid(), title:o.title||'', text:o.text||'', user:o.user||'', secret:!!o.secret,
+    })) };
+  }
+
+  /* ---------- mode ---------- */
+  function setMode(next) {
+    mode=next; peeking.clear();
+    document.getElementById('app').classList.toggle('mode-copy', mode==='copy');
+    document.getElementById('app').classList.toggle('mode-edit', mode==='edit');
+    document.getElementById('modeCopy').setAttribute('aria-pressed', mode==='copy');
+    document.getElementById('modeEdit').setAttribute('aria-pressed', mode==='edit');
+    addBtn.hidden = addSec.hidden = mode!=='edit';
+    render();
+  }
+  document.getElementById('modeCopy').addEventListener('click', () => setMode('copy'));
+  document.getElementById('modeEdit').addEventListener('click', () => setMode('edit'));
+  search.addEventListener('input', render);
+
+  document.getElementById('reset').addEventListener('click', () => {
+    if (!confirm(`セット「${activeSet().name}」のカードをすべて削除します。元に戻せません。よろしいですか？`)) return;
+    activeSet().items=[]; save(); render(); setStatus('このセットを空にしました');
+  });
+
+  /* ---------- shortcuts: secret card copies PASSWORD by default ---------- */
+  document.addEventListener('keydown', e => {
+    if (appEl.classList.contains('hidden')) return;
+    const modKey = isMac ? e.metaKey : e.ctrlKey;
+    if (!modKey || e.altKey) return;
+    if (!/^[0-9]$/.test(e.key)) return;
+    const idx = e.key==='0' ? 9 : parseInt(e.key,10)-1;
+    const item = activeSet().items[idx];
+    if (!item) return;
+    e.preventDefault();
+    if (item.secret) {
+      // Shift = ID、通常 = パスワード
+      if (e.shiftKey) copyText(item.user, idx, `${item.title||'ID'} の ID をコピー`);
+      else copyText(item.text, idx, `${item.title||'PW'} のパスワードをコピー`);
+    } else {
+      if (e.shiftKey) return;
+      copyText(item.text, idx, 'コピー ' + (item.text.length>40?item.text.slice(0,40)+'…':item.text));
+    }
+  });
+
+  boot();
+</script>

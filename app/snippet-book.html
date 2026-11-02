@@ -510,7 +510,7 @@
      ファイル本体を変更したら版番号を上げ、公式サイトの
      「バージョン ⇄ ハッシュ」対応表も更新すること。
      ========================================================= */
-  const APP_VERSION = 'V2.00.005';
+  const APP_VERSION = 'V2.00.006';
 
   /* =========================================================
      Storage keys
@@ -706,6 +706,10 @@
   let book = { sets: [], active: 0, name: 'snippet-book' };
   let mode = 'copy';
   let saveTimer = null;
+  // V2.00.006〜 ロックの回数。時間のかかる処理は始めたときの番号を覚え、終わったときに変わっていたら
+  // （＝途中でロックされたら）画面を出さない・書き出さない・データに足さない
+  let lockEpoch = 0;
+  const lockedSince = ep => ep !== lockEpoch;
   let savePending = false;  // V2.00.004〜 保存待ちがあるか（ロックの前に書く）
   let viewOnly = false;   // 読み込むだけ（保存しない）モード
   let pendingRestore = null;  // 起動時に取り込む上書きバックアップ（{data} 復号済み）
@@ -1005,7 +1009,9 @@
     if (!dkRaw || !vault) throw new Error('先にロックを解除してください');
     const label = (prompt('このパスキーの名前（どの端末か分かるように）', deviceLabel()) || '').trim();
     if (!label) return false;
+    const ep = lockEpoch;
     const r = await registerPasskey(vault.vaultId, label, passkeyWraps(vault));
+    if (lockedSince(ep) || !dkRaw) { r.prfOut.fill(0); throw new Error('登録の途中でロックされたので、登録をやめました（端末に作られたパスキーは、パスワード管理の画面から消してください）'); }
     vault.wraps.push(await makePasskeyWrap(dkRaw, r.prfOut, r.credId, r.prfSalt, label));
     r.prfOut.fill(0);
     await saveVaultMeta();
@@ -1360,6 +1366,7 @@
   });
 
   async function lockNow() {
+    lockEpoch++;   // V2.00.006〜 いま動いている処理に「ロックされた」と知らせる（保存待ちを書くより先に）
     // V2.00.004〜 保存待ちがあれば、鍵を消す前に書いておく（自動ロックで編集が消えないように）
     if (savePending && cryptoKey && !viewOnly) {
       clearTimeout(saveTimer); savePending = false;
@@ -1576,10 +1583,12 @@
   }
   async function copyText(txt, index, label, sensitive) {
     if (!txt) { showToast('中身が空です', true); return; }
+    const ep = lockEpoch;
     const ok = await writeClip(txt);
-    if (!ok) { showToast('コピーできませんでした', true); return; }
+    if (!ok) { if (!lockedSince(ep)) showToast('コピーできませんでした', true); return; }
+    if (sensitive) scheduleClipClear();   // ロックされていても、空にする予定は立てる
+    if (lockedSince(ep)) return;          // 途中でロックされた → 印も知らせも出さない（知らせにはコピーした文の頭が入るため）
     if (index != null) stamp(index);
-    if (sensitive) scheduleClipClear();
     showToast(sensitive && prefs.clipClearSec ? `${label}（${prefs.clipClearSec}秒後に空にします・この画面に戻ったとき）` : label);
   }
   /* V2.00.004〜 パスワード・復元キーをコピーしたら、決めた秒数のあとにクリップボードを空にする。
@@ -1906,10 +1915,16 @@
       const p2 = prompt('確認のためもう一度入力:');
       if (p2 === null) return;
       if (p1 !== p2) { showToast('2つの入力が一致しません', true); return; }
-      downloadJSON(fname, await makePwFile(p1, fullBook(true), { mode:'own', name:book.name }));
+      const ep = lockEpoch;
+      const out = await makePwFile(p1, fullBook(true), { mode:'own', name:book.name });
+      if (lockedSince(ep)) return;
+      downloadJSON(fname, out);
     } else {
       if (!cryptoKey || !vault) { showToast('先にロックを解除してください', true); return; }
-      downloadJSON(fname, await makeV5File(vault, cryptoKey, fullBook(true), { mode:'vault', name:book.name }));
+      const ep = lockEpoch;
+      const out = await makeV5File(vault, cryptoKey, fullBook(true), { mode:'vault', name:book.name });
+      if (lockedSince(ep)) return;
+      downloadJSON(fname, out);
     }
     setStatus('暗号化バックアップを書き出しました');
     showToast('暗号化して書き出しました');
@@ -1919,11 +1934,14 @@
   async function writeOverwriteBackup() {
     if (!cryptoKey || !vault) { showToast('先にロックを解除してください', true); return null; }
     const fname = `${safeFileBase().stamp}-上書きバックアップ.enc.json`;
-    downloadJSON(fname, await makeV5File(vault, cryptoKey, fullBook(true), {
+    const ep = lockEpoch;
+    const out = await makeV5File(vault, cryptoKey, fullBook(true), {
       mode:'vault',
       role: OVERWRITE_MARK,          // ← 上書き用の識別印
       name: book.name,
-    }));
+    });
+    if (lockedSince(ep)) return null;   // 途中でロックされた → 書き出さず、完了の画面も出さない
+    downloadJSON(fname, out);
     // バックアップ完了 → 変更フラグを下ろし、時刻を記録
     dirtySinceBackup = false;
     setLastBackup(Date.now());
@@ -1966,7 +1984,10 @@
     const payload = { version:4, kind:'set', name:set.name,
       items: set.items.map(o => ({ title:o.title, user:o.user||'', text:o.text, secret:o.secret })) };
     const fname = `${sanitizeName(set.name)}-${safeFileBase().date}-shared.enc.json`;
-    downloadJSON(fname, await makePwFile(filePw, payload, { mode:'own', set:set.name }));
+    const ep = lockEpoch;
+    const out = await makePwFile(filePw, payload, { mode:'own', set:set.name });
+    if (lockedSince(ep)) return;   // 暗号化の途中でロックされた → 書き出さず、パスワードも見せない
+    downloadJSON(fname, out);
 
     // reveal password once
     document.getElementById('sendFileName').textContent = `ファイル: ${fname}  ／  セット: ${set.name}`;
@@ -1992,14 +2013,17 @@
   document.getElementById('importFile').addEventListener('change', async e => {
     const file=e.target.files[0]; e.target.value='';
     if (!file) return;
+    const ep = lockEpoch;
     try {
       let data = await readJSONFile(file);
+      if (lockedSince(ep)) return;
 
       // encrypted file?
       if (isV5File(data) || isV4File(data)) {
         data = await decryptImport(data);
         if (data === null) return; // cancelled
       }
+      if (lockedSince(ep)) return;   // 復号の途中でロックされた → 空にした画面とデータに足さない
 
       // V2.00.004〜 先に全部を整えて確かめ、だめなら何も足さない
       let incoming;

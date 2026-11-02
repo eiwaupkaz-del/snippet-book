@@ -1,5 +1,5 @@
-// 依頼101〜103 スニペット帳 V2.00.003〜 の手元テスト（Node 18 以降）
-// 使い方：node test-v2005.mjs [snippet-book.html] [snippet.conf]
+// 依頼101〜104 スニペット帳 V2.00.003〜 の手元テスト（Node 18 以降）
+// 使い方：node test-v2006.mjs [snippet-book.html] [snippet.conf]
 // 1. 自動パスワード（genPassphrase）を HTML から切り出して試す
 // 2. 外のサイトを読まない・フォントがそろっている
 // 3. CSP のハッシュが HTML のスクリプトと合う
@@ -88,7 +88,7 @@ console.log('5. CSP（nginx の設定）');
 }
 
 console.log('6. 版');
-ok(/const APP_VERSION = 'V2\.00\.005';/.test(html), "APP_VERSION が 'V2.00.005'");
+ok(/const APP_VERSION = 'V2\.00\.006';/.test(html), "APP_VERSION が 'V2.00.006'");
 
 console.log('7. 取り込みの検査（V2.00.004〜）');
 {
@@ -144,6 +144,25 @@ console.log('10. 案内の言葉（V2.00.005〜）');
   ok(/漏れたかもしれないとき<\/b>は「鍵をすべて作り直す」/.test(html), '漏れたときは「鍵をすべて作り直す」と案内する');
   ok(!/無くしたとき・人に見られたときは作り直してください/.test(html), '「人に見られたら復元キーを作り直す」という前の案内は消した');
   ok(/30 秒後に空にする/.test(html) && /戻らなければ、クリップボードに残ります/.test(html) && /Win＋V/.test(html), 'クリップボードは「30 秒後に」・残る場合と履歴のことも書く');
+}
+
+console.log('11. 処理の途中でロックしたら、終わったあとに何もしない（V2.00.006〜）');
+{
+  ok(/let lockEpoch = 0;/.test(html) && /const lockedSince = ep => ep !== lockEpoch;/.test(html), 'ロックの番号（lockEpoch）がある');
+  ok(/async function lockNow\(\) \{\s*lockEpoch\+\+;/.test(html), 'ロックのいちばん最初に番号を進める（保存待ちを書くより先）');
+  const sect = (from, to) => { const i = html.indexOf(from); return i < 0 ? '' : html.slice(i, html.indexOf(to, i + from.length)); };
+  const send = sect("getElementById('sendSet').addEventListener", "getElementById('sendCopy')");
+  ok(/const ep = lockEpoch;[\s\S]*await makePwFile[\s\S]*if \(lockedSince\(ep\)\) return;[\s\S]*downloadJSON[\s\S]*sendPw'\)\.textContent = filePw/.test(send), '送る：暗号化のあと、ロックされていたら書き出さず・パスワードを見せない');
+  const exp = sect("getElementById('exportEnc').addEventListener", 'BACKUP (overwrite backup');
+  ok((exp.match(/if \(lockedSince\(ep\)\) return;\s*downloadJSON/g) || []).length === 2, '全体を書き出し：ファイル専用パスワード・アプリの鍵の両方で、ロックされていたら書き出さない');
+  const bak = sect('async function writeOverwriteBackup()', '\n  }\n');
+  ok(/await makeV5File[\s\S]*if \(lockedSince\(ep\)\) return null;[^\n]*\n\s*downloadJSON/.test(bak), '上書きバックアップ：ロックされていたら書き出さず、完了の画面も出さない');
+  const imp = sect("getElementById('importFile').addEventListener", 'async function decryptImport');
+  ok(/data = await decryptImport\(data\);[\s\S]{0,80}\}\s*if \(lockedSince\(ep\)\) return;/.test(imp) && imp.indexOf('lockedSince(ep)') < imp.indexOf('book.sets.push'), '読み込み：復号のあと、ロックされていたら足さない');
+  const cp = sect('async function copyText(', '\n  }\n');
+  ok(/scheduleClipClear\(\);[^\n]*\n\s*if \(lockedSince\(ep\)\) return;[\s\S]*stamp\(index\)[\s\S]*showToast/.test(cp), 'コピー：空にする予定は立て、ロックされていたら印と知らせ（コピーした文の頭）を出さない');
+  const pk = sect('async function addPasskey()', '\n  }\n');
+  ok(/await registerPasskey[^\n]*\n\s*if \(lockedSince\(ep\) \|\| !dkRaw\)/.test(pk), 'パスキーの登録：途中でロックされたら登録をやめる');
 }
 
 console.log(`合格 ${pass} / 不合格 ${fail}`);

@@ -430,7 +430,7 @@
       <button class="btn btn-primary" id="addPasskeyBtn">この端末でパスキーを登録</button>
     </div>
     <div class="restore-head">復元キー</div>
-    <p class="dlg-note" style="margin:0 0 8px;">無くしたとき・人に見られたときは作り直してください。作り直すと、これから書き出すバックアップは新しい復元キーで開きます（前に書き出したバックアップは古い復元キーで開いたままです）。</p>
+    <p class="dlg-note" style="margin:0 0 8px;"><b>無くしたとき</b>は「復元キーを作り直す」。これから書き出すバックアップは新しい復元キーで開きます（前に書き出したバックアップは古い復元キーで開いたままです）。<br><b>人に見られた・漏れたかもしれないとき</b>は「鍵をすべて作り直す」を使い、そのあと新しくバックアップを取って、古いバックアップは捨ててください。復元キーの作り直しだけでは、古い復元キーと古いバックアップを持つ人から、データの鍵を守れません。</p>
     <div class="lock-row" style="margin-bottom:14px;">
       <button class="btn" id="regenRkBtn">復元キーを作り直す</button>
       <button class="btn btn-quiet" id="rekeyBtn">鍵をすべて作り直す</button>
@@ -445,10 +445,10 @@
     <div class="lock-row" style="margin-bottom:6px;">
       <label for="clipClearSel" style="font-size:11.5px;">パスワードをコピーしたら</label>
       <select class="data-name" id="clipClearSel" style="width:auto;">
-        <option value="30">30 秒で空にする</option><option value="0">空にしない</option>
+        <option value="30">30 秒後に空にする</option><option value="0">空にしない</option>
       </select>
     </div>
-    <p class="dlg-note" style="margin:0 0 14px;">クリップボードを空にできるのは、この画面に戻っているときだけです（ブラウザの決まり）。ほかのアプリに移っている間は、戻ったときに空にします。共有クリップボードや履歴アプリに残った分は消せません。</p>
+    <p class="dlg-note" style="margin:0 0 14px;">空にできるのは、この画面が前に出ているときだけです（ブラウザの決まり）。ほかのアプリに移ったまま戻らなければ、クリップボードに残ります。また、クリップボードの履歴（Windows の Win＋V・履歴アプリ・ほかの端末と共有するクリップボード）に入った分は消せません。大事なパスワードを貼り付けたら、この画面に戻るのがおすすめです。</p>
     <p class="lock-err" id="keysErr"></p>
     <div class="lock-row" style="justify-content:flex-end;">
       <button class="btn btn-primary" id="keysClose">閉じる</button>
@@ -510,7 +510,7 @@
      ファイル本体を変更したら版番号を上げ、公式サイトの
      「バージョン ⇄ ハッシュ」対応表も更新すること。
      ========================================================= */
-  const APP_VERSION = 'V2.00.004';
+  const APP_VERSION = 'V2.00.005';
 
   /* =========================================================
      Storage keys
@@ -911,10 +911,11 @@
   const RK_TEXT = {
     new:     ['あなたの復元キー', '新しい端末で開くときや、パスキーが使えないときに使います。'],
     migrate: ['あなたの復元キー', 'これからはマスターパスワードの代わりにこの復元キーを使います（パスキーが使えないときだけ）。'],
-    regen:   ['新しい復元キー', '「控えました」を押すと、古い復元キーではこの端末のデータを開けなくなります。'],
+    regen:   ['新しい復元キー', '「控えました」を押すと、古い復元キーではこの端末のデータを開けなくなります。ただし前に書き出したバックアップは古い復元キーで開けるままです。漏れたかもしれないときは「鍵をすべて作り直す」を使ってください。'],
     rekey:   ['新しい復元キー', '鍵をすべて作り直します。登録したパスキーは外れるので、あとで登録し直してください。'],
   };
   let rkPrintName = '';
+  let rkCloser = null, openCloser = null;   // V2.00.005〜 ロックのときに、開いている途中の画面を閉じて中身を消す
   function showRecoveryKey(rk, kind, name) {
     rkPrintName = name || book.name || 'snippet-book';
     const [title, sub] = RK_TEXT[kind] || RK_TEXT.new;
@@ -925,11 +926,14 @@
     $('rkOverlay').classList.remove('hidden');
     return new Promise(resolve => {
       const close = ok => {
+        rkCloser = null;
         $('rkOverlay').classList.add('hidden');
         $('rkCode').textContent = '—';
+        $('rkConfirm').value = ''; $('rkErr').textContent = '';
         $('rkDone').onclick = $('rkCancel').onclick = $('rkCopy').onclick = $('rkPrint').onclick = $('rkConfirm').onkeydown = null;
         resolve(ok);
       };
+      rkCloser = close;
       $('rkCopy').onclick = async () => {
         const ok = await writeClip(formatRecoveryKey(rk));
         if (ok) scheduleClipClear();
@@ -974,10 +978,13 @@
     if (!(pks.length && passkeyBase) && !isTouch) setTimeout(() => $('openRk').focus(), 50);
     return new Promise(resolve => {
       const close = dk => {
+        openCloser = null;
         $('openOverlay').classList.add('hidden');
+        $('openRk').value = ''; $('openErr').textContent = ''; $('openSub').textContent = '';   // V2.00.005〜 打った復元キーを残さない
         $('openPasskeyBtn').onclick = $('openRkBtn').onclick = $('openCancel').onclick = $('openRk').onkeydown = null;
         resolve(dk);
       };
+      openCloser = close;
       $('openPasskeyBtn').onclick = async () => {
         $('openErr').textContent = 'パスキーを確かめています…';
         try { close(await openWithPasskey(pks)); }
@@ -1361,7 +1368,7 @@
     cryptoKey = null;
     if (dkRaw) dkRaw.fill(0);
     dkRaw = null;
-    ['keysOverlay','openOverlay','rkOverlay'].forEach(id => document.getElementById(id).classList.add('hidden'));
+    wipeScreen();
     appEl.classList.add('hidden');
     lockScreen.classList.remove('hidden');
     if (viewOnly) {
@@ -1377,6 +1384,28 @@
     }
   }
   document.getElementById('lockNow').addEventListener('click', () => lockNow());
+
+  /* V2.00.005〜 ロックのとき、画面に出した中身を DOM からすべて消す。
+     鍵を消しても、カードの部品・編集欄・ダイアログに平文が残っていると、端末を触れる人が開発者ツールなどで読めるため。
+     （クリップボードを空にする予定は、ロックのあとも残す） */
+  function wipeScreen() {
+    if (rkCloser) rkCloser(false);
+    if (openCloser) openCloser(null);
+    ['keysOverlay','openOverlay','rkOverlay','sendOverlay','exitOverlay'].forEach(id => document.getElementById(id).classList.add('hidden'));
+    $('sendPw').textContent = '—'; $('sendFileName').textContent = '—';
+    $('exitFileName').textContent = '—';
+    $('rkCode').textContent = '—'; $('rkConfirm').value = ''; $('rkErr').textContent = '';
+    $('openRk').value = ''; $('openErr').textContent = ''; $('openSub').textContent = '';
+    $('pkList').innerHTML = ''; $('keysSub').textContent = '—'; $('keysErr').textContent = '';
+    $('printArea').innerHTML = ''; document.body.classList.remove('printing');
+    list.innerHTML = ''; setsEl.innerHTML = '';
+    search.value = '';
+    $('dataName').value = '';
+    $('status').textContent = ''; $('status').classList.remove('error');
+    clearTimeout(toastTimer); toast.classList.remove('show'); toast.textContent = '';
+    peeking.clear(); Object.keys(peekTimers).forEach(k => { clearTimeout(peekTimers[k]); delete peekTimers[k]; });
+    const ae = document.activeElement; if (ae && ae !== document.body && ae.blur) ae.blur();
+  }
 
   /* V2.00.004〜 自動ロック：開いている間、何もしない時間が決めた分を超えたらロックする。
      別のタブ・アプリに移っている間も「何もしない」に数える（戻ったとき・端末が目覚めたときにも確かめる）。
@@ -1551,7 +1580,7 @@
     if (!ok) { showToast('コピーできませんでした', true); return; }
     if (index != null) stamp(index);
     if (sensitive) scheduleClipClear();
-    showToast(sensitive && prefs.clipClearSec ? `${label}（${prefs.clipClearSec}秒で空にします）` : label);
+    showToast(sensitive && prefs.clipClearSec ? `${label}（${prefs.clipClearSec}秒後に空にします・この画面に戻ったとき）` : label);
   }
   /* V2.00.004〜 パスワード・復元キーをコピーしたら、決めた秒数のあとにクリップボードを空にする。
      ブラウザは、この画面が前に出ていないとクリップボードに書けないので、

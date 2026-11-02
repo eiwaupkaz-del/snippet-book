@@ -1,5 +1,5 @@
-// 依頼101・102 スニペット帳 V2.00.003〜 の手元テスト（Node 18 以降）
-// 使い方：node tests/test-v2004.mjs [app/snippet-book.html] [deploy/snippet.conf]
+// 依頼101〜103 スニペット帳 V2.00.003〜 の手元テスト（Node 18 以降）
+// 使い方：node test-v2005.mjs [snippet-book.html] [snippet.conf]
 // 1. 自動パスワード（genPassphrase）を HTML から切り出して試す
 // 2. 外のサイトを読まない・フォントがそろっている
 // 3. CSP のハッシュが HTML のスクリプトと合う
@@ -9,8 +9,8 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const htmlPath = process.argv[2] || join(here, '..', 'app', 'snippet-book.html');
-const confPath = process.argv[3] || join(here, '..', 'deploy', 'snippet.conf');
+const htmlPath = process.argv[2] || join(here, 'snippet-book.html');
+const confPath = process.argv[3] || join(here, '..', 'snippet.conf');
 const html = readFileSync(htmlPath, 'utf8');
 const conf = readFileSync(confPath, 'utf8');
 const crypto = globalThis.crypto || webcrypto;
@@ -88,7 +88,7 @@ console.log('5. CSP（nginx の設定）');
 }
 
 console.log('6. 版');
-ok(/const APP_VERSION = 'V2\.00\.004';/.test(html), "APP_VERSION が 'V2.00.004'");
+ok(/const APP_VERSION = 'V2\.00\.005';/.test(html), "APP_VERSION が 'V2.00.005'");
 
 console.log('7. 取り込みの検査（V2.00.004〜）');
 {
@@ -118,6 +118,32 @@ console.log('8. 自動ロックとクリップボード（V2.00.004〜）');
   ok(pwCopies === 2, 'パスワードのコピー（ボタンとショートカット）は空にする予定を立てる');
   ok(/writeClip\(formatRecoveryKey\(rk\)\);\s*if \(ok\) scheduleClipClear\(\)/.test(html) && /writeClip\(pw\);\s*if \(ok\) scheduleClipClear\(\)/.test(html), '復元キー・送るパスワードのコピーも空にする');
   ok(/document\.addEventListener\('copy'/.test(html), 'この画面でほかの物をコピーしたら予定を取り消す');
+}
+
+console.log('9. ロックのとき画面に中身を残さない（V2.00.005〜）');
+{
+  const w1 = html.indexOf('function wipeScreen()'), w2 = html.indexOf('\n  }', w1);
+  const wipe = w1 > 0 ? html.slice(w1, w2) : '';
+  ok(w1 > 0, 'wipeScreen がある');
+  const ln = html.indexOf('async function lockNow()');
+  const lockBody = html.slice(ln, html.indexOf('\n  }\n', ln));
+  ok(/dkRaw = null;\s*wipeScreen\(\);/.test(lockBody), 'ロックで鍵を消したすぐあとに wipeScreen を呼ぶ（手でも自動でも同じ lockNow）');
+  for (const id of ['keysOverlay','openOverlay','rkOverlay','sendOverlay','exitOverlay'])
+    ok(wipe.includes(`'${id}'`), `ロックで ${id} を閉じる`);
+  ok(/\$\('sendPw'\)\.textContent = '—'/.test(wipe), '送るパスワードの表示を消す');
+  ok(/\$\('openRk'\)\.value = ''/.test(wipe) && /\$\('rkConfirm'\)\.value = ''/.test(wipe), '復元キーの入力欄を空にする');
+  ok(/list\.innerHTML = ''/.test(wipe) && /setsEl\.innerHTML = ''/.test(wipe), 'カードとセットの部品を消す（編集欄のパスワードも一緒に消える）');
+  ok(/search\.value = ''/.test(wipe) && /\$\('dataName'\)\.value = ''/.test(wipe) && /\$\('status'\)\.textContent = ''/.test(wipe), '検索・データ名・状態の表示（コピーした文の頭）を消す');
+  ok(/rkCloser\(false\)/.test(wipe) && /openCloser\(null\)/.test(wipe), '開いている途中の画面は、待っている処理も終わらせる');
+  const ao = html.slice(html.indexOf('function askOpen('), html.indexOf('/* ---------- パスキーを登録する'));
+  ok(/const close = dk => \{[\s\S]{0,120}\$\('openRk'\)\.value = ''/.test(ao), 'ファイルを開く画面は、開けた・やめたときにも復元キーを消す');
+}
+
+console.log('10. 案内の言葉（V2.00.005〜）');
+{
+  ok(/漏れたかもしれないとき<\/b>は「鍵をすべて作り直す」/.test(html), '漏れたときは「鍵をすべて作り直す」と案内する');
+  ok(!/無くしたとき・人に見られたときは作り直してください/.test(html), '「人に見られたら復元キーを作り直す」という前の案内は消した');
+  ok(/30 秒後に空にする/.test(html) && /戻らなければ、クリップボードに残ります/.test(html) && /Win＋V/.test(html), 'クリップボードは「30 秒後に」・残る場合と履歴のことも書く');
 }
 
 console.log(`合格 ${pass} / 不合格 ${fail}`);

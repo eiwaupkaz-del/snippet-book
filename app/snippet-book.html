@@ -435,6 +435,20 @@
       <button class="btn" id="regenRkBtn">復元キーを作り直す</button>
       <button class="btn btn-quiet" id="rekeyBtn">鍵をすべて作り直す</button>
     </div>
+    <div class="restore-head">自動ロックとクリップボード（この端末だけの設定）</div>
+    <div class="lock-row" style="margin-bottom:6px;">
+      <label for="autoLockSel" style="font-size:11.5px;">何もしないとロック</label>
+      <select class="data-name" id="autoLockSel" style="width:auto;">
+        <option value="1">1 分</option><option value="5">5 分</option><option value="15">15 分</option><option value="30">30 分</option><option value="0">しない</option>
+      </select>
+    </div>
+    <div class="lock-row" style="margin-bottom:6px;">
+      <label for="clipClearSel" style="font-size:11.5px;">パスワードをコピーしたら</label>
+      <select class="data-name" id="clipClearSel" style="width:auto;">
+        <option value="30">30 秒で空にする</option><option value="0">空にしない</option>
+      </select>
+    </div>
+    <p class="dlg-note" style="margin:0 0 14px;">クリップボードを空にできるのは、この画面に戻っているときだけです（ブラウザの決まり）。ほかのアプリに移っている間は、戻ったときに空にします。共有クリップボードや履歴アプリに残った分は消せません。</p>
     <p class="lock-err" id="keysErr"></p>
     <div class="lock-row" style="justify-content:flex-end;">
       <button class="btn btn-primary" id="keysClose">閉じる</button>
@@ -496,7 +510,7 @@
      ファイル本体を変更したら版番号を上げ、公式サイトの
      「バージョン ⇄ ハッシュ」対応表も更新すること。
      ========================================================= */
-  const APP_VERSION = 'V2.00.003';
+  const APP_VERSION = 'V2.00.004';
 
   /* =========================================================
      Storage keys
@@ -692,6 +706,7 @@
   let book = { sets: [], active: 0, name: 'snippet-book' };
   let mode = 'copy';
   let saveTimer = null;
+  let savePending = false;  // V2.00.004〜 保存待ちがあるか（ロックの前に書く）
   let viewOnly = false;   // 読み込むだけ（保存しない）モード
   let pendingRestore = null;  // 起動時に取り込む上書きバックアップ（{data} 復号済み）
   const OVERWRITE_MARK = 'overwrite-backup';  // 上書き用バックアップの識別印
@@ -705,6 +720,20 @@
   const MOD = isMac ? '⌘' : 'Ctrl';
 
   const LASTBACKUP_KEY = 'snippet-book:v4:lastbackup';  // 平文。最終バックアップ時刻(ミリ秒)
+  /* V2.00.004〜 自動ロックとクリップボードの設定（平文・この端末だけ）。中身ではないので暗号化しない */
+  const PREFS_KEY = 'snippet-book:v5:prefs';
+  const AUTO_LOCK_CHOICES = [1, 5, 15, 30, 0];   // 分。0 = しない
+  const CLIP_CLEAR_CHOICES = [30, 0];            // 秒。0 = 空にしない
+  function loadPrefs() {
+    let p = {};
+    try { p = JSON.parse(localStorage.getItem(PREFS_KEY) || '{}') || {}; } catch {}
+    return {
+      autoLockMin: AUTO_LOCK_CHOICES.includes(p.autoLockMin) ? p.autoLockMin : 5,
+      clipClearSec: CLIP_CLEAR_CHOICES.includes(p.clipClearSec) ? p.clipClearSec : 30,
+    };
+  }
+  function savePrefs(p) { try { localStorage.setItem(PREFS_KEY, JSON.stringify(p)); } catch {} }
+  let prefs = loadPrefs();
   const BACKUP_STALE_DAYS = 3;      // 何日バックアップしないと促すか
   let dirtySinceBackup = false;     // 前回バックアップ以降に変更があったか
 
@@ -903,6 +932,7 @@
       };
       $('rkCopy').onclick = async () => {
         const ok = await writeClip(formatRecoveryKey(rk));
+        if (ok) scheduleClipClear();
         $('rkCopy').textContent = ok ? 'コピーしました' : 'コピー不可';
         setTimeout(() => { $('rkCopy').textContent = 'コピー（パスワード管理アプリへ）'; }, 1600);
       };
@@ -1027,7 +1057,7 @@
     const errEl = $('setupErr');
     errEl.textContent = 'ファイルを確認しています…';
     try {
-      const data = JSON.parse(await file.text());
+      const data = await readJSONFile(file);
       if (isV5File(data)) {
         const dk = await askOpen(data.wraps, 'バックアップから始める', file.name);
         if (!dk) { errEl.textContent = ''; return; }
@@ -1137,7 +1167,7 @@
     if (!file) return;
     errEl.textContent = 'ファイルを確認しています…';
     try {
-      const data = JSON.parse(await file.text());
+      const data = await readJSONFile(file);
       // 上書き用バックアップの印を確認（暗号ファイルはラッパー側に付く）
       if (data.role !== OVERWRITE_MARK) {
         errEl.textContent = 'これは「上書き用バックアップ」ではありません。ヘッダの「バックアップしてロック」で作ったファイルを選んでください。';
@@ -1322,7 +1352,12 @@
     if (!e.target.value.trim()) { e.target.value = 'snippet-book'; book.name = 'snippet-book'; save(); }
   });
 
-  function lockNow() {
+  async function lockNow() {
+    // V2.00.004〜 保存待ちがあれば、鍵を消す前に書いておく（自動ロックで編集が消えないように）
+    if (savePending && cryptoKey && !viewOnly) {
+      clearTimeout(saveTimer); savePending = false;
+      try { await persist(); } catch {}
+    }
     cryptoKey = null;
     if (dkRaw) dkRaw.fill(0);
     dkRaw = null;
@@ -1341,7 +1376,32 @@
       boot();
     }
   }
-  document.getElementById('lockNow').addEventListener('click', lockNow);
+  document.getElementById('lockNow').addEventListener('click', () => lockNow());
+
+  /* V2.00.004〜 自動ロック：開いている間、何もしない時間が決めた分を超えたらロックする。
+     別のタブ・アプリに移っている間も「何もしない」に数える（戻ったとき・端末が目覚めたときにも確かめる）。
+     復元キーを見せている間（控えてもらう画面）はロックしない */
+  let lastActivity = Date.now();
+  ['pointerdown','keydown','touchstart','wheel','input'].forEach(ev =>
+    document.addEventListener(ev, () => { lastActivity = Date.now(); }, { capture:true, passive:true }));
+  function checkAutoLock() {
+    if (!prefs.autoLockMin) return;
+    if (appEl.classList.contains('hidden')) { lastActivity = Date.now(); return; }   // ロック画面のときは数えない
+    if (!$('rkOverlay').classList.contains('hidden')) return;
+    if (Date.now() - lastActivity >= prefs.autoLockMin * 60000) {
+      lockNow();
+      setTimeout(() => showToast(`${prefs.autoLockMin}分なにもしなかったのでロックしました`), 300);
+    }
+  }
+  setInterval(checkAutoLock, 10000);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkAutoLock(); });
+  window.addEventListener('focus', checkAutoLock);
+
+  // 設定（鍵の画面）
+  $('autoLockSel').value = String(prefs.autoLockMin);
+  $('clipClearSel').value = String(prefs.clipClearSec);
+  $('autoLockSel').addEventListener('change', e => { prefs.autoLockMin = parseInt(e.target.value, 10); savePrefs(prefs); lastActivity = Date.now(); });
+  $('clipClearSel').addEventListener('change', e => { prefs.clipClearSec = parseInt(e.target.value, 10); savePrefs(prefs); if (!prefs.clipClearSec) { clipClearAt = 0; clearTimeout(clipClearTimer); } });
 
   /* ---------- view-only navigation ---------- */
   function showViewCard() {
@@ -1365,7 +1425,7 @@
     const errEl = document.getElementById('viewErr');
     errEl.textContent = '読み込んでいます…';
     try {
-      let data = JSON.parse(await file.text());
+      let data = await readJSONFile(file);
       if (isV5File(data) || isV4File(data)) {
         data = await decryptImport(data);       // パスキー・復元キー・パスワードのどれかで開く
         if (data === null) { errEl.textContent = ''; return; }  // キャンセル
@@ -1383,12 +1443,18 @@
   /* =========================================================
      Data persistence (encrypted)
      ========================================================= */
+  /* V2.00.004〜 ファイルや保存から読んだ値は、文字・数だけを文字として使う（それ以外は空）。
+     形のおかしいファイルで画面が止まらないように */
+  const asText = v => typeof v === 'string' ? v : (typeof v === 'number' || typeof v === 'boolean') ? String(v) : '';
+  const asList = v => Array.isArray(v) ? v : [];
+  const asObj  = v => (v && typeof v === 'object' && !Array.isArray(v)) ? v : {};
   function normalize(b) {
-    const sets = (b.sets || []).map(s => ({
-      name: s.name || '無名',
-      items: (s.items || []).map(o => ({
-        id:o.id || uid(), title:o.title || '', text:o.text || '',
-        user: o.user || '', secret: !!o.secret,
+    b = asObj(b);
+    const sets = asList(b.sets).map(asObj).map(s => ({
+      name: asText(s.name) || '無名',
+      items: asList(s.items).map(asObj).map(o => ({
+        id: asText(o.id) || uid(), title: asText(o.title), text: asText(o.text),
+        user: asText(o.user), secret: !!o.secret,
       })),
     }));
     if (!sets.length) sets.push({ name:'メモ', items:[] });
@@ -1425,7 +1491,9 @@
     dirtySinceBackup = true;
     updateBackupBanner();
     clearTimeout(saveTimer);
+    savePending = true;
     saveTimer = setTimeout(async () => {
+      savePending = false;
       try { await persist(); setStatus(`保存しました · ${activeSet().items.length} 件 / ${book.sets.length} セット`); }
       catch { setStatus('この端末に保存できませんでした。バックアップを取ってください', true); }
     }, 300);
@@ -1477,13 +1545,54 @@
       ta.remove(); return ok;
     }
   }
-  async function copyText(txt, index, label) {
+  async function copyText(txt, index, label, sensitive) {
     if (!txt) { showToast('中身が空です', true); return; }
     const ok = await writeClip(txt);
     if (!ok) { showToast('コピーできませんでした', true); return; }
     if (index != null) stamp(index);
-    showToast(label);
+    if (sensitive) scheduleClipClear();
+    showToast(sensitive && prefs.clipClearSec ? `${label}（${prefs.clipClearSec}秒で空にします）` : label);
   }
+  /* V2.00.004〜 パスワード・復元キーをコピーしたら、決めた秒数のあとにクリップボードを空にする。
+     ブラウザは、この画面が前に出ていないとクリップボードに書けないので、
+     そのときは「空にする予定」を残し、画面に戻ったときに空にする。
+     この画面の中でほかの物をコピーしたら、予定は取り消す（その物を消さないため） */
+  let clipClearAt = 0, clipClearTimer = null;
+  function scheduleClipClear() {
+    clearTimeout(clipClearTimer); clipClearAt = 0;
+    if (!prefs.clipClearSec) return;
+    clipClearAt = Date.now() + prefs.clipClearSec * 1000;
+    clipClearTimer = setTimeout(tryClipClear, prefs.clipClearSec * 1000 + 50);
+  }
+  async function tryClipClear() {
+    if (!clipClearAt || Date.now() < clipClearAt) return;
+    if (document.visibilityState !== 'visible' || !document.hasFocus()) return;   // 戻ってきたときにもう一度
+    const at = clipClearAt;
+    let ok = clearClipByCopyEvent();   // 画面を触った直後なら、これで空にできる（Safari も）
+    if (!ok) { try { await navigator.clipboard.writeText(''); ok = true; } catch {} }
+    if (!ok) return;   // まだ書けない → 次に触ったときにもう一度
+    if (clipClearAt !== at) return;   // その間に新しくコピーした
+    clipClearAt = 0; clearTimeout(clipClearTimer);
+    showToast('クリップボードを空にしました');
+  }
+  // copy の合図を起こし、中身を空の文字に差しかえる（writeText が許されないブラウザ向け）
+  let clipClearing = false;
+  function clearClipByCopyEvent() {
+    if (navigator.userActivation && !navigator.userActivation.isActive) return false;
+    clipClearing = true;
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch {}
+    clipClearing = false;
+    return ok;
+  }
+  document.addEventListener('copy', e => {
+    if (clipClearing) { e.clipboardData.setData('text/plain', ''); e.preventDefault(); return; }
+    if (!e.isTrusted) return;
+    clipClearAt = 0; clearTimeout(clipClearTimer);
+  });
+  window.addEventListener('focus', () => tryClipClear());
+  ['pointerdown','keydown'].forEach(ev => document.addEventListener(ev, () => tryClipClear(), true));
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') tryClipClear(); });
   function stamp(index) {
     const card = document.querySelector(`.card[data-index="${index}"]`);
     if (!card) return;
@@ -1607,7 +1716,7 @@
         eyeBtn.addEventListener('click', e => { e.stopPropagation(); peek(item.id); });
         const pwBtn = document.createElement('button');
         pwBtn.className='cred-copy'; pwBtn.textContent='コピー';
-        pwBtn.addEventListener('click', e => { e.stopPropagation(); copyText(item.text, i, `${item.title||'PW'} のパスワードをコピー`); });
+        pwBtn.addEventListener('click', e => { e.stopPropagation(); copyText(item.text, i, `${item.title||'PW'} のパスワードをコピー`, true); });
         if (item.text) pwRow.appendChild(eyeBtn);
         pwRow.appendChild(pwBtn);
 
@@ -1839,6 +1948,7 @@
   document.getElementById('sendCopy').addEventListener('click', async () => {
     const pw = document.getElementById('sendPw').textContent;
     const ok = await writeClip(pw);
+    if (ok) scheduleClipClear();
     const b = document.getElementById('sendCopy');
     b.textContent = ok ? 'コピーしました' : 'コピー不可';
     setTimeout(() => { b.textContent = 'コピー'; }, 1500);
@@ -1854,8 +1964,7 @@
     const file=e.target.files[0]; e.target.value='';
     if (!file) return;
     try {
-      const raw = await file.text();
-      let data = JSON.parse(raw);
+      let data = await readJSONFile(file);
 
       // encrypted file?
       if (isV5File(data) || isV4File(data)) {
@@ -1863,12 +1972,15 @@
         if (data === null) return; // cancelled
       }
 
-      let added=0;
-      const push = s => { book.sets.push(normalizeSet(s)); added++; };
-      if (Array.isArray(data.sets)) data.sets.forEach(push);
-      else if (data.kind==='set' || Array.isArray(data.items)) push(data);
-      else if (Array.isArray(data)) push({ name:file.name.replace(/\.(enc\.)?json$/i,''), items:data });
+      // V2.00.004〜 先に全部を整えて確かめ、だめなら何も足さない
+      let incoming;
+      if (data && Array.isArray(data.sets)) incoming = data.sets.filter(x => x && typeof x === 'object').map(normalizeSet);
+      else if (data && (data.kind==='set' || Array.isArray(data.items))) incoming = [normalizeSet(data)];
+      else if (Array.isArray(data)) incoming = [normalizeSet({ name:file.name.replace(/\.(enc\.)?json$/i,''), items:data })];
       else throw new Error('形式が認識できません');
+      checkLimits(book.sets.concat(incoming));
+      book.sets.push(...incoming);
+      const added = incoming.length;
       book.active=book.sets.length-1; save(); render();
       setStatus(`読み込みました · ${added} セットを追加`);
       showToast(`${added} セットを追加しました`);
@@ -1905,9 +2017,22 @@
   }
 
   function normalizeSet(s) {
-    return { name:(s.name||'読み込み').toString(), items:(s.items||[]).map(o => ({
-      id:uid(), title:o.title||'', text:o.text||'', user:o.user||'', secret:!!o.secret,
+    s = asObj(s);
+    return { name: asText(s.name) || '読み込み', items: asList(s.items).map(asObj).map(o => ({
+      id:uid(), title:asText(o.title), text:asText(o.text), user:asText(o.user), secret:!!o.secret,
     })) };
+  }
+  /* V2.00.004〜 読み込むファイルの上限。大きすぎると画面が重くなり、保存もできなくなるため */
+  const MAX_FILE_BYTES = 5 * 1024 * 1024;
+  const MAX_SETS = 200, MAX_ITEMS = 10000;
+  async function readJSONFile(file) {
+    if (file.size > MAX_FILE_BYTES) throw new Error('ファイルが大きすぎます（5MB まで）');
+    try { return JSON.parse(await file.text()); }
+    catch { throw new Error('JSON の形ではありません'); }
+  }
+  function checkLimits(sets) {
+    const n = sets.reduce((a, s) => a + s.items.length, 0);
+    if (sets.length > MAX_SETS || n > MAX_ITEMS) throw new Error(`セットは ${MAX_SETS}、カードは ${MAX_ITEMS} までです`);
   }
 
   /* ---------- mode ---------- */
@@ -1942,7 +2067,7 @@
     if (item.secret) {
       // Shift = ID、通常 = パスワード
       if (e.shiftKey) copyText(item.user, idx, `${item.title||'ID'} の ID をコピー`);
-      else copyText(item.text, idx, `${item.title||'PW'} のパスワードをコピー`);
+      else copyText(item.text, idx, `${item.title||'PW'} のパスワードをコピー`, true);
     } else {
       if (e.shiftKey) return;
       copyText(item.text, idx, 'コピー ' + (item.text.length>40?item.text.slice(0,40)+'…':item.text));

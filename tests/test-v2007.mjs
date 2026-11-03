@@ -1,5 +1,5 @@
-// 依頼101〜104 スニペット帳 V2.00.003〜 の手元テスト（Node 18 以降）
-// 使い方：node test-v2006.mjs [snippet-book.html] [snippet.conf]
+// 依頼101〜105 スニペット帳 V2.00.003〜 の手元テスト（Node 18 以降）
+// 使い方：node test-v2007.mjs [snippet-book.html] [snippet.conf]
 // 1. 自動パスワード（genPassphrase）を HTML から切り出して試す
 // 2. 外のサイトを読まない・フォントがそろっている
 // 3. CSP のハッシュが HTML のスクリプトと合う
@@ -88,7 +88,7 @@ console.log('5. CSP（nginx の設定）');
 }
 
 console.log('6. 版');
-ok(/const APP_VERSION = 'V2\.00\.006';/.test(html), "APP_VERSION が 'V2.00.006'");
+ok(/const APP_VERSION = 'V2\.00\.007';/.test(html), "APP_VERSION が 'V2.00.007'");
 
 console.log('7. 取り込みの検査（V2.00.004〜）');
 {
@@ -162,7 +162,28 @@ console.log('11. 処理の途中でロックしたら、終わったあとに何
   const cp = sect('async function copyText(', '\n  }\n');
   ok(/scheduleClipClear\(\);[^\n]*\n\s*if \(lockedSince\(ep\)\) return;[\s\S]*stamp\(index\)[\s\S]*showToast/.test(cp), 'コピー：空にする予定は立て、ロックされていたら印と知らせ（コピーした文の頭）を出さない');
   const pk = sect('async function addPasskey()', '\n  }\n');
-  ok(/await registerPasskey[^\n]*\n\s*if \(lockedSince\(ep\) \|\| !dkRaw\)/.test(pk), 'パスキーの登録：途中でロックされたら登録をやめる');
+  ok(/await registerPasskey[\s\S]{0,260}if \(lockedSince\(ep\) \|\| !dkRaw\)/.test(pk), 'パスキーの登録：本人確認のあと、ロックされていたら登録をやめる');
+}
+
+console.log('12. 鍵の処理の途中でロックしても、ロックのあとに何も変えない・開き直さない（V2.00.007〜）');
+{
+  const sect = (from, to) => { const i = html.indexOf(from); return i < 0 ? '' : html.slice(i, html.indexOf(to, i + from.length)); };
+  const nv = sect('async function startNewVault(', '\n  }\n');
+  ok(/const ep = lockEpoch;/.test(nv) && /await encryptJSON\(key, content\);\s*if \(lockedSince\(ep\)\) \{ dk\.fill\(0\); return false; \}/.test(nv), '鍵をすべて作り直す・新しく作る：計算のあと、ロックされていたら何も書かずにやめる');
+  const tail = nv.slice(nv.indexOf('if (lockedSince(ep))'), nv.indexOf('enterApp();'));
+  ok(tail.length > 0 && !/await /.test(tail.replace(/\/\/[^\n]*/g, '')), 'ロックを確かめてから enterApp までは await をはさまない（データと鍵の書きこみがずれない・開き直さない）');
+  ok(!/await openSession\(dk\);\s*book = content;\s*await persist\(\);/.test(nv), '前の形（openSession → persist → saveVaultMeta を await でつなぐ）は使わない');
+  const pk = sect('async function addPasskey()', '\n  }\n');
+  ok(/await makePasskeyWrap\([^\n]*\n[^\n]*\n\s*if \(lockedSince\(ep\) \|\| !dkRaw\) throw stopped\(\);/.test(pk), 'パスキーの登録：包んだあとにもう一度確かめ、ロックされていたら足さない');
+  const pkTail = pk.slice(pk.indexOf('// ここから先は'), pk.indexOf('await saving;'));
+  ok(pkTail.length > 0 && !/await /.test(pkTail.replace(/\/\/[^\n]*/g, '')), 'パスキーの登録：足す・保存・知らせるの間に await をはさまない');
+  const rg = sect("$('regenRkBtn').addEventListener", "$('rekeyBtn')");
+  ok(/const nw = await makeRecoveryWrap\(dkRaw, rk\);\s*if \(lockedSince\(ep\)\) return;/.test(rg), '復元キーの作り直し：包んだあと、ロックされていたら変えない');
+  ok(/getElementById\('addPasskeyBtn'\)|\$\('addPasskeyBtn'\)\.addEventListener\('click', async \(\) => \{[\s\S]{0,120}const ep = lockEpoch;[\s\S]{0,80}if \(!lockedSince\(ep\)\) renderKeys\(\)/.test(html), '鍵の設定の「登録」：ロックされていたら一覧を描き直さない');
+  const sv = sect('function save()', '\n  }\n');
+  ok(/if \(!lockedSince\(ep\)\) setStatus\(`保存しました/.test(sv), 'ふだんの保存：ロックのあとに「保存しました」を出さない');
+  const rm = sect("del.textContent = '外す'", 'li.appendChild(del)');
+  ok(/const saving = saveVaultMeta\(\);[\s\S]*renderKeys\(\);[\s\S]*await saving;/.test(rm), 'パスキーを外す：書いてから描くまで await をはさまない');
 }
 
 console.log(`合格 ${pass} / 不合格 ${fail}`);

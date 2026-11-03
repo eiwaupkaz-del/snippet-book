@@ -7,8 +7,8 @@
 よく使う文章・コマンド・ID やパスワードを登録しておき、クリック（スマホはタップ）だけでコピーできる道具です。
 
 - 使う：**https://snippet.eiwa-up.jp/**
-- マニュアル：[docs/manual-V2.00.006.pdf](docs/manual-V2.00.006.pdf)
-- 現行版：**Version 2.00.006**
+- マニュアル：[docs/manual-V2.00.007.pdf](docs/manual-V2.00.007.pdf)
+- 現行版：**Version 2.00.007**
 
 > A small, single-file web app to store and copy text snippets and credentials. Everything stays in your browser, encrypted with a random key that is wrapped by a passkey (WebAuthn PRF) and by a recovery key. Your data is never sent anywhere, and the page loads nothing from other sites.
 
@@ -37,7 +37,7 @@
 - パスキーの PRF の値と復元キーそのものは、どこにも保存しません。
 - 人に渡す「このセットを暗号化して送る」のパスワードは、アプリが 20 文字（約 99 ビット）のでたらめな文字で作ります。自分で決める「ファイル専用パスワード」は 12 文字以上です（Version 2.00.003 から）。
 - 何もしないまま決めた時間（はじめは 5 分）がたつと、自動でロックします。パスワード・復元キーをコピーしたら、30 秒後にクリップボードを空にします（Version 2.00.004 から。空にできるのはこの画面が前に出ているときだけで、戻らなければ残ります。クリップボードの履歴に入った分は消せません）。
-- ロックすると（手でも自動でも）、データの鍵を消すだけでなく、画面に出していた中身・編集欄・検索の文字・人に送るパスワードの画面・打ちかけた復元キーも、ページからすべて消します（Version 2.00.005 から）。書き出し・人に送る・読み込みなどの途中でロックしたときは、終わったあとに画面を出さず、書き出さず、データにも足しません（Version 2.00.006 から）。
+- ロックすると（手でも自動でも）、データの鍵を消すだけでなく、画面に出していた中身・編集欄・検索の文字・人に送るパスワードの画面・打ちかけた復元キーも、ページからすべて消します（Version 2.00.005 から）。書き出し・人に送る・読み込みなどの途中でロックしたときは、終わったあとに画面を出さず、書き出さず、データにも足しません（Version 2.00.006 から）。パスキーの登録・復元キーの作り直し・鍵をすべて作り直すも同じで、途中でロックしたら鍵は前のまま変わらず、アプリも開き直りません（Version 2.00.007 から）。
 - 読み込むファイルは、先に全体を確かめ、形がおかしければ何も足しません。中身はすべて文字として扱い、5MB までです（Version 2.00.004 から）。
 
 くわしくは [docs/how-it-works.md](docs/how-it-works.md) を見てください。
@@ -54,8 +54,8 @@
 
 | 版 | SHA-256（snippet-book.html） |
 |---|---|
+| Version 2.00.007 | `02b7ac95f04a5665d6583ec6aed1ad77c2aa0872352c4c9a1277c5a4203b412b` |
 | Version 2.00.006 | `cb16047b5e68014e798de20d399e6446034cff768de7c2abee03380fb4920694` |
-| Version 2.00.005 | `c5384cf7d0f18c35e1f974e31c76be07ec1a575d9691952c51d928a0398f705d` |
 | Version 2.00.003 | `dae7fd31aedfdac2fd78f1da7458122d4157b29d4264ca21579e49d3cd37cd39` |
 
 アイコン・フォントなどほかのファイルの値は [`app/SHA256SUMS`](app/SHA256SUMS) にあります。
@@ -81,7 +81,7 @@ Invoke-WebRequest https://snippet.eiwa-up.jp/ -OutFile snippet-book.html; Get-Fi
 | `app/` | サイトで配っているファイルそのもの（HTML・アイコン・manifest・`fonts/`）と `SHA256SUMS` |
 | `deploy/snippet.conf` | サイトの nginx の設定（守りのヘッダーと CSP）。verify が、公開中のサイトの CSP と同じか確かめます |
 | `tests/test-core.mjs` | 鍵のしくみのテスト（HTML の中の `/*<core>` 〜 `/*</core>*/` を切り出して試します） |
-| `tests/test-v2006.mjs` | 自動パスワードの強さ・外のサイトを読まないこと・CSP のハッシュが HTML と合うこと・取り込みの検査・自動ロックとクリップボード・ロックで画面に中身を残さないこと・途中でロックしたら何もしないことのテスト |
+| `tests/test-v2007.mjs` | 自動パスワードの強さ・外のサイトを読まないこと・CSP のハッシュが HTML と合うこと・取り込みの検査・自動ロックとクリップボード・ロックで画面に中身を残さないこと・途中でロックしたら何もしないこと（鍵の作業も）のテスト |
 | `docs/` | マニュアル（PDF と元の HTML）・しくみの説明 |
 | `.github/workflows/verify.yml` | テストと、サイトとの照らし合わせ（1 時間に 1 回） |
 
@@ -91,7 +91,7 @@ Node.js 18 以降で：
 
 ```bash
 node tests/test-core.mjs
-node tests/test-v2006.mjs
+node tests/test-v2007.mjs
 ```
 
 ## 問題を見つけたら

@@ -428,7 +428,10 @@
     <ul class="pk-list" id="pkList"></ul>
     <div class="lock-row" style="margin:8px 0 14px;">
       <button class="btn btn-primary" id="addPasskeyBtn">この端末でパスキーを登録</button>
+      <button class="btn" id="mergePkBtn">ほかの端末のパスキーを合わせる</button>
     </div>
+    <input type="file" id="mergePkFile" accept="application/json,.json,.enc.json" hidden>
+    <p class="dlg-note" style="margin:-6px 0 14px;">パスキーの一覧は端末ごとに持っています。ほかの端末で登録したパスキーをここにも出すには、その端末で「バックアップしてロック」したファイルを、ここで「ほかの端末のパスキーを合わせる」から選んでください（中身は変わりません）。上書き用バックアップから開いたときも、一覧は自動で合わさります。</p>
     <div class="restore-head">復元キー</div>
     <p class="dlg-note" style="margin:0 0 8px;"><b>無くしたとき</b>は「復元キーを作り直す」。これから書き出すバックアップは新しい復元キーで開きます（前に書き出したバックアップは古い復元キーで開いたままです）。<br><b>人に見られた・漏れたかもしれないとき</b>は「鍵をすべて作り直す」を使い、そのあと新しくバックアップを取って、古いバックアップは捨ててください。復元キーの作り直しだけでは、古い復元キーと古いバックアップを持つ人から、データの鍵を守れません。</p>
     <div class="lock-row" style="margin-bottom:14px;">
@@ -510,7 +513,7 @@
      ファイル本体を変更したら版番号を上げ、公式サイトの
      「バージョン ⇄ ハッシュ」対応表も更新すること。
      ========================================================= */
-  const APP_VERSION = 'V2.00.008';
+  const APP_VERSION = 'V2.00.009';
 
   /* =========================================================
      Storage keys
@@ -665,7 +668,8 @@
   function isV5File(d) { return !!(d && d.version === 5 && d.kdf === 'dk-wrap' && Array.isArray(d.wraps) && d.iv && d.ct); }
   function isV4File(d) { return !!(d && d.enc === 'aes-gcm' && d.iv && d.ct && d.salt && d.kdf !== 'dk-wrap'); }
   async function makeV5File(meta, key, payload, extra) {
-    return { version:5, enc:'aes-gcm', kdf:'dk-wrap', ...extra, vaultId:meta.vaultId, wraps:meta.wraps, ...(await encryptJSON(key, payload)) };
+    const revoked = Array.isArray(meta.revoked) && meta.revoked.length ? { revoked: meta.revoked } : {};   // V2.00.009〜 外したパスキーの印
+    return { version:5, enc:'aes-gcm', kdf:'dk-wrap', ...extra, vaultId:meta.vaultId, wraps:meta.wraps, ...revoked, ...(await encryptJSON(key, payload)) };
   }
   async function openV4File(data, password) {
     const key = await deriveKey(password, new Uint8Array(b64.dec(data.salt)), data.iter || PBKDF2_ITER_OLD);
@@ -871,12 +875,27 @@
     if (v && v.data && v.data.iv && v.data.ct) return v.data;
     try { const r = await store.get(DATA5_KEY); const d = JSON.parse(r.value); return d && d.iv && d.ct ? d : null; } catch { return null; }
   }
+  /* V2.00.009〜 パスキーの一覧を合わせる（同じ金庫のバックアップから）。
+     - 合わせるのはパスキーだけ。復元キーはこの端末のものを使う（作り直した古い復元キーを戻さないため）
+     - 外したパスキーは revoked（credId の一覧）に残し、どちらの側で外したものも戻さない
+     - 呼ぶ側は、そのファイルがこの金庫の鍵で開けること（本物であること）を確かめてから呼ぶ */
+  function mergePasskeys(local, other) {
+    const revoked = [...new Set([...(local.revoked || []), ...(other.revoked || [])])].filter(x => typeof x === 'string');
+    const gone = new Set(revoked);
+    const keep = (local.wraps || []).filter(w => w.type !== 'passkey' || !gone.has(w.credId));
+    const have = new Set(keep.filter(w => w.type === 'passkey').map(w => w.credId));
+    const add = (other.wraps || []).filter(w => w && w.type === 'passkey' && typeof w.credId === 'string' && !gone.has(w.credId) && !have.has(w.credId)
+      && typeof w.prfSalt === 'string' && typeof w.salt === 'string' && typeof w.iv === 'string' && typeof w.ct === 'string');
+    const removed = (local.wraps || []).length - keep.length;
+    return { wraps: keep.concat(add), revoked, added: add.length, removed };
+  }
   // 計算（暗号化）をすませてから、1回で書き、書けたら vault・鍵・本体を切りかえる。ep を渡すと、ロックされていたら書かずに false
   async function commitVault(meta, dk, content, ep) {
     const key = await importDK(dk);
     const blob = await encryptJSON(key, content);
     if (ep !== undefined && lockedSince(ep)) return false;
     const next = { version:5, vaultId: meta.vaultId, wraps: meta.wraps, data: blob };
+    if (Array.isArray(meta.revoked) && meta.revoked.length) next.revoked = meta.revoked;   // V2.00.009〜 外したパスキーの印も引き継ぐ
     await writeVault(next);   // 失敗したら throw（何も変わっていない）
     // ここから先は await をはさまない
     if (dkRaw && dkRaw !== dk) dkRaw.fill(0);
@@ -1163,9 +1182,13 @@
             // 別の金庫のバックアップ → そのファイルの鍵で開き、鍵ごと置き換える
             useDk = await askOpen(wrapper.wraps, '上書きバックアップを開く', '別の鍵で作られたバックアップです。そのときのパスキーか復元キーで開いてください。');
             if (!useDk) { errEl.textContent = '取り込みを中止しました。'; dk.fill(0); return; }
-            useVault = { version:5, vaultId:wrapper.vaultId, wraps:wrapper.wraps };
+            useVault = { version:5, vaultId:wrapper.vaultId, wraps:wrapper.wraps, revoked:wrapper.revoked };
           }
           restored = await decryptJSON(await importDK(useDk), wrapper);
+          if (wrapper.vaultId === vault.vaultId) {   // V2.00.009〜 同じ金庫：開けたので本物。パスキーの一覧を合わせる
+            const m = mergePasskeys(vault, wrapper);
+            useVault = { ...vault, wraps: m.wraps, revoked: m.revoked };
+          }
         } else {
           restored = await decryptImport(wrapper);     // 古い形（V1）のバックアップ：パスワードを聞く
           if (restored === null) { errEl.textContent = '取り込みを中止しました。'; dk.fill(0); return; }
@@ -1306,7 +1329,7 @@
       del.className = 'cred-copy'; del.textContent = '外す';
       del.addEventListener('click', async () => {
         if (!confirm(`パスキー「${w.label}」を外しますか？\n\nこのパスキーでは開けなくなります。端末のパスワード管理に残る「スニペット帳」のパスキーは、そちらで消してください。`)) return;
-        const next = { ...vault, wraps: vault.wraps.filter(x => x !== w) };
+        const next = { ...vault, wraps: vault.wraps.filter(x => x !== w), revoked: [...new Set([...(vault.revoked || []), w.credId])] };   // V2.00.009〜 外した印を残す（ほかの端末のバックアップから戻らない）
         try { await writeVault(next); }   // V2.00.008〜 書けてから切りかえる
         catch (e) { showToast('外せませんでした', true); $('keysErr').textContent = e.message; return; }
         vault = next;
@@ -1327,6 +1350,33 @@
     const ep = lockEpoch;
     try { await addPasskey(); if (!lockedSince(ep)) renderKeys(); }
     catch (e) { if (!lockedSince(ep)) $('keysErr').textContent = passkeyErrText(e); }
+  });
+  // V2.00.009〜 ほかの端末のバックアップから、パスキーの一覧だけを合わせる（中身は変えない）
+  $('mergePkBtn').addEventListener('click', () => $('mergePkFile').click());
+  $('mergePkFile').addEventListener('change', async e => {
+    const file = e.target.files[0]; e.target.value = '';
+    if (!file) return;
+    $('keysErr').textContent = '';
+    const ep = lockEpoch;
+    try {
+      const data = await readJSONFile(file);
+      if (lockedSince(ep) || !cryptoKey) return;
+      if (!isV5File(data)) throw new Error('この形のファイルからは合わせられません（「バックアップしてロック」などで書き出した、いまの形のファイルを選んでください）');
+      if (data.vaultId !== vault.vaultId) throw new Error('別の鍵のデータのバックアップです（鍵をすべて作り直す前のものなど）。合わせられません');
+      try { await decryptJSON(cryptoKey, data); } catch { throw new Error('このファイルは、この鍵で開けませんでした。合わせられません'); }   // 本物か確かめる
+      if (lockedSince(ep)) return;
+      const m = mergePasskeys(vault, data);
+      if (!m.added && !m.removed && (m.revoked.length === (vault.revoked || []).length)) { showToast('新しく合わせるパスキーはありません'); return; }
+      const next = { ...vault, wraps: m.wraps, revoked: m.revoked };
+      await writeVault(next);   // 書けてから切りかえる
+      if (lockedSince(ep)) return;
+      vault = next;
+      markNeedsBackup();
+      renderKeys();
+      showToast(`パスキーの一覧を合わせました（足した ${m.added} 件・外した ${m.removed} 件）`);
+    } catch (err) {
+      if (!lockedSince(ep)) $('keysErr').textContent = err.message;
+    }
   });
   $('regenRkBtn').addEventListener('click', async () => {
     const ep = lockEpoch;
@@ -2078,11 +2128,14 @@
       if (lockedSince(ep)) return;
 
       // encrypted file?
+      const rawFile = data;
       if (isV5File(data) || isV4File(data)) {
         data = await decryptImport(data);
         if (data === null) return; // cancelled
       }
       if (lockedSince(ep)) return;   // 復号の途中でロックされた → 空にした画面とデータに足さない
+      // V2.00.009〜 同じ金庫の V2 のファイル（開けた＝本物）なら、パスキーの一覧も合わせる
+      const pkMerge = isV5File(rawFile) && vault && rawFile.vaultId === vault.vaultId ? mergePasskeys(vault, rawFile) : null;
 
       // V2.00.004〜 先に全部を整えて確かめ、だめなら何も足さない
       let incoming;
@@ -2091,6 +2144,11 @@
       else if (Array.isArray(data)) incoming = [normalizeSet({ name:file.name.replace(/\.(enc\.)?json$/i,''), items:data })];
       else throw new Error('形式が認識できません');
       checkLimits(book.sets.concat(incoming));
+      if (pkMerge && (pkMerge.added || pkMerge.removed)) {
+        const next = { ...vault, wraps: pkMerge.wraps, revoked: pkMerge.revoked };
+        try { await writeVault(next); if (!lockedSince(ep)) vault = next; } catch {}
+        if (lockedSince(ep)) return;
+      }
       book.sets.push(...incoming);
       const added = incoming.length;
       book.active=book.sets.length-1; save(); render();

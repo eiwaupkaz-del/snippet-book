@@ -1,5 +1,5 @@
-// 依頼101〜106 スニペット帳 V2.00.003〜 の手元テスト（Node 18 以降）
-// 使い方：node test-v2008.mjs [snippet-book.html] [snippet.conf]
+// 依頼101〜107 スニペット帳 V2.00.003〜 の手元テスト（Node 18 以降）
+// 使い方：node test-v2009.mjs [snippet-book.html] [snippet.conf]
 // 1. 自動パスワード（genPassphrase）を HTML から切り出して試す
 // 2. 外のサイトを読まない・フォントがそろっている
 // 3. CSP のハッシュが HTML のスクリプトと合う
@@ -88,7 +88,7 @@ console.log('5. CSP（nginx の設定）');
 }
 
 console.log('6. 版');
-ok(/const APP_VERSION = 'V2\.00\.008';/.test(html), "APP_VERSION が 'V2.00.008'");
+ok(/const APP_VERSION = 'V2\.00\.009';/.test(html), "APP_VERSION が 'V2.00.009'");
 
 console.log('7. 取り込みの検査（V2.00.004〜）');
 {
@@ -104,8 +104,8 @@ console.log('7. 取り込みの検査（V2.00.004〜）');
   ok(s.items[3].secret === true && N.normalizeSet({items:[{}]}).items[0].secret === false, '秘匿の印は前と同じ扱い（前の版のデータの印を落とさない）');
   ok(N.normalizeSet(null).items.length === 0 && N.normalizeSet({ items: 'abc' }).items.length === 0, 'null や文字の items でも止まらない');
   ok(/function readJSONFile/.test(html) && /MAX_FILE_BYTES = 5 \* 1024 \* 1024/.test(html), '5MB を超えるファイルは読まない');
-  ok((html.match(/await readJSONFile\(file\)/g) || []).length === 4 && !/JSON\.parse\(await file\.text\(\)\)/.test(html.replace(/async function readJSONFile[\s\S]*?\n  }/, '')), 'ファイルを読む4か所すべてが readJSONFile を通る');
-  ok(/checkLimits\(book\.sets\.concat\(incoming\)\);\s*book\.sets\.push\(\.\.\.incoming\)/.test(html), '全部確かめてから足す（途中で失敗したら何も足さない）');
+  ok((html.match(/await readJSONFile\(file\)/g) || []).length === 5 && !/JSON\.parse\(await file\.text\(\)\)/.test(html.replace(/async function readJSONFile[\s\S]*?\n  }/, '')), 'ファイルを読む5か所すべてが readJSONFile を通る（V2.00.009 で「パスキーを合わせる」を足して5か所）');
+  ok(/checkLimits\(book\.sets\.concat\(incoming\)\);\s*(if \(pkMerge[\s\S]{0,400}?\}\s*)?book\.sets\.push\(\.\.\.incoming\)/.test(html), '全部確かめてから足す（途中で失敗したら何も足さない）');
 }
 
 console.log('8. 自動ロックとクリップボード（V2.00.004〜）');
@@ -171,7 +171,7 @@ console.log('12. 鍵の処理の途中でロックしても、ロックのあと
   const nv = sect('async function startNewVault(', '\n  }\n');
   const cv = sect('async function commitVault(', '\n  }\n');
   ok(/const ep = lockEpoch;/.test(nv) && /commitVault\(newVaultMeta\(\[wrap\]\), dk, content, ep\)/.test(nv) && /if \(!ok\) \{ dk\.fill\(0\); return false; \}/.test(nv), '鍵をすべて作り直す・新しく作る：ロックされていたら何も書かずにやめる（commitVault に番号を渡す）');
-  ok(/await encryptJSON\(key, content\);\s*if \(ep !== undefined && lockedSince\(ep\)\) return false;\s*const next = [^\n]*\n\s*await writeVault\(next\);/.test(cv), 'commitVault：計算のあと、ロックを確かめてから1回で書く');
+  ok(/await encryptJSON\(key, content\);\s*if \(ep !== undefined && lockedSince\(ep\)\) return false;\s*const next = [^\n]*\n(\s*if \(Array\.isArray\(meta\.revoked\)[^\n]*\n)?\s*await writeVault\(next\);/.test(cv), 'commitVault：計算のあと、ロックを確かめてから1回で書く');
   const cvTail = cv.slice(cv.indexOf('// ここから先は'));
   ok(cvTail.length > 0 && !/await /.test(cvTail.replace(/\/\/[^\n]*/g, '')) && /vault = next; dkRaw = dk; cryptoKey = key; book = content;/.test(cvTail), '書けたあと、await をはさまずに vault・鍵・本体を切りかえる（開き直さない）');
   const pk = sect('async function addPasskey()', '\n  }\n');
@@ -206,6 +206,35 @@ console.log('13. データと鍵の情報は1回で書く・開けないとき�
   ok(/const blob = await readDataBlob\(vault\);/.test(fu) && /if \(v && v\.data && v\.data\.iv && v\.data\.ct\) return v\.data;[\s\S]{0,80}store\.get\(DATA5_KEY\)/.test(html), '新しい形（meta.data）を先に読み、無ければ前の形（v5:data）を読む');
   ok(/if \(!vault\.data\) \{ try \{ await persist\(\); \} catch \{\} \}/.test(fu), '前の形で開けたら、新しい形へ移す');
   ok(/if \(next\.data\) dropLegacyData\(\);/.test(html), '新しい形で書けたら、前の置き場を消す');
+}
+
+console.log('14. パスキーの一覧を合わせる（V2.00.009〜）');
+{
+  const sect = (from, to) => { const i = html.indexOf(from); return i < 0 ? '' : html.slice(i, html.indexOf(to, i + from.length)); };
+  const src = sect('function mergePasskeys(', '\n  }\n') + '\n  }';
+  const merge = new Function(src + '\nreturn mergePasskeys;')();
+  const pk = (id, label) => ({ type:'passkey', credId:id, prfSalt:'s', label, salt:'s', iv:'i', ct:'c', created:1 });
+  const rc = tag => ({ type:'recovery', salt:'s'+tag, iv:'i', ct:'c'+tag, created:1 });
+  const mac = { vaultId:'V', wraps:[rc('A'), pk('mac','Mac の Chrome')] };
+  const iph = { vaultId:'V', wraps:[rc('A'), pk('mac','Mac の Chrome'), pk('iph','iPhone の Safari')] };
+  let m = merge(mac, iph);
+  ok(m.wraps.filter(w => w.type === 'passkey').map(w => w.credId).join() === 'mac,iph' && m.added === 1, 'ほかの端末のパスキーが足される（同じものは二重にしない）');
+  ok(m.wraps.filter(w => w.type === 'recovery').length === 1 && m.wraps.find(w => w.type === 'recovery').ct === 'cA', '復元キーはこの端末のものだけ');
+  m = merge({ vaultId:'V', wraps:[rc('NEW'), pk('mac','m')] }, { vaultId:'V', wraps:[rc('OLD'), pk('mac','m')] });
+  ok(m.wraps.filter(w => w.type === 'recovery').map(w => w.ct).join() === 'cNEW', '作り直した古い復元キーは、古いバックアップから戻らない');
+  m = merge({ vaultId:'V', wraps:[rc('A'), pk('mac','m')], revoked:['iph'] }, iph);
+  ok(!m.wraps.some(w => w.credId === 'iph') && m.revoked.includes('iph'), 'この端末で外したパスキーは、ほかの端末のバックアップから戻らない');
+  m = merge(iph, { vaultId:'V', wraps:[rc('A'), pk('mac','m')], revoked:['iph'] });
+  ok(!m.wraps.some(w => w.credId === 'iph') && m.removed === 1, 'ほかの端末で外したパスキーは、この端末でも外れる');
+  m = merge(mac, { vaultId:'V', wraps:[null, 'x', { type:'passkey', credId: 5 }, { type:'passkey', credId:'bad' }, pk('ok','o')], revoked:[1, 'z'] });
+  ok(m.wraps.filter(w => w.type === 'passkey').map(w => w.credId).join() === 'mac,ok' && m.revoked.join() === 'z', '形のおかしい項目は足さない・印は文字だけ');
+  const mf = sect("$('mergePkFile').addEventListener", "$('regenRkBtn')");
+  ok(/data\.vaultId !== vault\.vaultId[\s\S]*await decryptJSON\(cryptoKey, data\)[\s\S]*mergePasskeys\(vault, data\)/.test(mf), '「合わせる」：同じ金庫で、この鍵で開ける（本物の）ファイルのときだけ合わせる');
+  ok(/await writeVault\(next\);[\s\S]{0,60}vault = next;/.test(mf), '「合わせる」：書けてから切りかえる');
+  const fu = sect('async function finishUnlock(', '// 通常起動');
+  ok(/restored = await decryptJSON\(await importDK\(useDk\), wrapper\);\s*if \(wrapper\.vaultId === vault\.vaultId\) \{[\s\S]{0,140}mergePasskeys\(vault, wrapper\)/.test(fu), '上書き用バックアップ（同じ金庫）：開けたあとに一覧を合わせる');
+  ok(/revoked: \[\.\.\.new Set\(\[\.\.\.\(vault\.revoked \|\| \[\]\), w\.credId\]\)\]/.test(html), 'パスキーを外したら、外した印を残す');
+  ok(/const revoked = Array\.isArray\(meta\.revoked\)[\s\S]{0,400}\.\.\.revoked, \.\.\.\(await encryptJSON/.test(html) && /if \(Array\.isArray\(meta\.revoked\) && meta\.revoked\.length\) next\.revoked = meta\.revoked;/.test(html), '外した印は、バックアップにも新しい金庫にも引き継ぐ');
 }
 
 console.log(`合格 ${pass} / 不合格 ${fail}`);

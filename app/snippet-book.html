@@ -544,7 +544,7 @@
      ファイル本体を変更したら版番号を上げ、公式サイトの
      「バージョン ⇄ ハッシュ」対応表も更新すること。
      ========================================================= */
-  const APP_VERSION = 'V2.01.002';
+  const APP_VERSION = 'V2.01.003';
 
   /* =========================================================
      Storage keys
@@ -957,6 +957,9 @@
      - make は「いまの vault をもとに next を作る」関数。順番が来てから作るので、途中のほかの保存を消さない。null なら書かない
      - 書けたら vault を書いた中身に切りかえる。onWritten は書けた直後に、await をはさまずに呼ぶ */
   const STALE_MSG = 'ほかのタブ（ウィンドウ）で、この端末の保存が先に変わっていました。古い内容で上書きしないように、何も変えていません。いったんロックして開き直してください';
+  /* V2.01.003〜 Web Locks（タブをまたいで1つずつにするしくみ）が無いブラウザでは、2つのタブが同時に書けてしまうので、書かない（読むだけ） */
+  const HAS_LOCKS = !!(navigator.locks && typeof navigator.locks.request === 'function');
+  const NO_LOCKS_MSG = 'このブラウザは古いので、この端末に安全に保存できません（読むだけはできます）。ブラウザを新しくしてください（Safari 15.4 以降・Chrome・Edge など）';
   let vaultQueue = Promise.resolve();
   function storedRev() {
     return store.get(META5_KEY).then(r => { const c = r && r.value ? JSON.parse(r.value) : null; return c && Number.isInteger(c.rev) ? c.rev : 0; }, () => 0);
@@ -975,8 +978,7 @@
       if (out.data) dropLegacyData();
       return out;
     };
-    const locked = () => (navigator.locks && typeof navigator.locks.request === 'function')
-      ? navigator.locks.request('snippet-book-vault', run) : run();
+    const locked = () => HAS_LOCKS ? navigator.locks.request('snippet-book-vault', run) : Promise.reject(new Error(NO_LOCKS_MSG));
     const p = vaultQueue.then(locked, locked);
     vaultQueue = p.catch(() => {});
     return p;
@@ -1090,6 +1092,7 @@
   }
   // 計算（暗号化）をすませてから、1回で書き、書けたら vault・鍵・本体を切りかえる。ep を渡すと、ロックされていたら書かずに false
   async function commitVault(meta, dk, content, ep) {
+    const seq = editSeq;   // V2.01.003〜 この番号までの編集は、content に入っている（または content で置きかえる）
     const key = await importDK(dk);
     const blob = await encryptJSON(key, content);
     if (ep !== undefined && lockedSince(ep)) return false;
@@ -1104,6 +1107,7 @@
       // 書けた直後に、await をはさまずに鍵と本体を切りかえる（vault は writeVault が切りかえる）
       if (dkRaw && dkRaw !== dk) dkRaw.fill(0);
       dkRaw = dk; cryptoKey = key; book = content;
+      if (seq > savedSeq) savedSeq = seq;
     });
     return ok;
   }
@@ -1118,6 +1122,10 @@
 
   async function boot() {
     const vl = $('verLock'); if (vl) vl.textContent = APP_VERSION;
+    if (!HAS_LOCKS) {   // V2.01.003〜 書けないブラウザ：作る・バックアップから始めるを止め、知らせる
+      ['createBtn','startFromBackup'].forEach(id => { const b = $(id); if (b) b.disabled = true; });
+      setTimeout(() => { ['setupErr','unlockErr','migrateErr'].forEach(id => { const el = $(id); if (el) el.textContent = NO_LOCKS_MSG; }); }, 0);
+    }
     const vm = $('verMain'); if (vm) vm.textContent = APP_VERSION;
     // iOS Safari かつ未インストール(ホーム画面に追加していない)なら案内を表示
     let tipDismissed = false;
@@ -1456,9 +1464,9 @@
     if (fresh && fresh.version === 5 && Array.isArray(fresh.wraps)) vault = fresh;
     const blob = await readDataBlob(vault);
     if (!blob) {
-      book = normalize(SEED);   // まだ本体が無い（作りかけ）。書くのは、編集したとき
+      book = normalize(SEED); savedSeq = editSeq;   // まだ本体が無い（作りかけ）。書くのは、編集したとき
     } else {
-      try { book = normalize(await decryptJSON(cryptoKey, blob)); }
+      try { book = normalize(await decryptJSON(cryptoKey, blob)); savedSeq = editSeq; }
       catch {
         // V2.00.008〜 開けないときは、見本で上書きしない（前の版はここで見本を保存して、元のデータが消えた）
         cryptoKey = null; if (dkRaw) dkRaw.fill(0); dkRaw = null;
@@ -1481,7 +1489,7 @@
       unsavedStash = { vaultId: vault.vaultId, at: Date.now(), ...(await encryptJSON(cryptoKey, book)) };
       try { await store.set(UNSAVED_KEY, JSON.stringify(unsavedStash)); } catch {}
     } catch {}
-    unsavedChanges = false;
+    savedSeq = editSeq;   // 残したので、ロックのあとにもう一度は残さない
   }
   function clearUnsaved() { unsavedStash = null; try { store.delete(UNSAVED_KEY).catch(() => {}); } catch {} }
   async function offerUnsaved() {
@@ -1492,7 +1500,7 @@
     const ep = lockEpoch;
     if (confirm(`ロックの前に、この端末に保存できなかった変更があります（${histText({ at:s.at, device:'', browser:'' }).split('　')[0]}）。\n\nこの変更で、いまのデータを置きかえますか？\n（置きかえると、そのあとにほかのタブで保存した内容は消えます）`)) {
       if (lockedSince(ep)) return;
-      book = content; render(); renderSets();
+      book = content; editSeq++; render(); renderSets();
       try { await persist(); clearUnsaved(); if (!lockedSince(ep)) setStatus('保存できなかった変更を戻しました'); }
       catch (e) { if (!lockedSince(ep)) setStatus('戻した変更を保存できませんでした：' + e.message, true); }
     } else if (confirm('保存できなかった変更を捨てますか？\n\n「キャンセル」なら、次に開いたときにもう一度聞きます。')) {
@@ -1798,6 +1806,8 @@
   });
 
   function enterApp() {
+    appEl.inert = false;   // V2.01.003〜 ロックのときに止めた操作をもどす
+    if (!HAS_LOCKS && !viewOnly) setTimeout(() => setStatus(NO_LOCKS_MSG, true), 0);
     lockScreen.classList.add('hidden');
     appEl.classList.remove('hidden');
     hint.innerHTML = viewOnly
@@ -1852,11 +1862,13 @@
     lockEpoch++;   // V2.00.006〜 いま動いている処理に「ロックされた」と知らせる（保存待ちを書くより先に）
     // V2.00.004〜 保存待ちがあれば、鍵を消す前に書いておく（自動ロックで編集が消えないように）
     // V2.01.002〜 動いている保存も待つ。それでも保存できなければ、編集中の内容を鍵で暗号化して残してからロックする（次に開いたときに戻せる）
+    // V2.01.003〜 ロックを始めたら画面の操作を止め（ロックの途中の編集を入れない）、最新の編集番号まで保存できたかを比べる
+    appEl.inert = true;
     if (cryptoKey && !viewOnly) {
-      if (savePending) { clearTimeout(saveTimer); savePending = false; unsavedChanges = true; }
+      if (savePending) { clearTimeout(saveTimer); savePending = false; }
       try { await persistChain; } catch {}
-      if (unsavedChanges) { try { await persist(); } catch {} }
-      if (unsavedChanges) await stashUnsaved();
+      if (hasUnsaved()) { try { await persist(); } catch {} }
+      if (hasUnsaved()) await stashUnsaved();
     }
     staleTab = false;
     cryptoKey = null;
@@ -2017,7 +2029,11 @@
      暗号化のあいだに鍵か金庫が変わっていたら、古い鍵の暗号文は書かない（新しい鍵でもう一度）。
      前の版は、鍵をすべて作り直したあとに古い保存が終わると、新しい金庫を古い金庫の情報で上書きした */
   let persistChain = Promise.resolve();
-  let unsavedChanges = false;   // 保存できていない編集がある（ロックのときに残す）
+  /* V2.01.003〜 編集番号：編集するたびに editSeq を1ふやし、保存できたら「どの番号までを保存したか」を savedSeq に覚える。
+     前の版は「保存できていない」を真偽値で持っていたので、保存の途中で編集すると、古い保存が終わったときに
+     あとの編集まで「保存済み」にしてしまい、すぐロックすると、あとの編集が消えた（チャッピーさんの再点検） */
+  let editSeq = 0, savedSeq = 0;
+  const hasUnsaved = () => editSeq > savedSeq;
   function persist() {
     const run = () => doPersist(false);
     const p = persistChain.then(run, run);
@@ -2026,21 +2042,23 @@
   }
   async function doPersist(again) {
     if (!cryptoKey || !vault) return;
-    if (staleTab) { unsavedChanges = true; throw new Error(STALE_MSG); }
+    if (staleTab) throw new Error(STALE_MSG);
     const key = cryptoKey, vid = vault.vaultId;
+    const seq = editSeq;   // この番号までの編集を暗号化する（暗号化は、呼んだときの中身を一度に写す）
     const blob = await encryptJSON(key, book);
     let moved = false;
     try {
       await writeVault(() => {
         if (!vault || vault.vaultId !== vid || cryptoKey !== key) { moved = true; return null; }
         return { ...vault, data: blob };
-      }, () => { unsavedChanges = false; });
-    } catch (e) { unsavedChanges = true; throw e; }
+      }, () => { if (seq > savedSeq) savedSeq = seq; });
+    } catch (e) { throw e; }
     if (moved && !again && cryptoKey && vault && cryptoKey !== key) return doPersist(true);
   }
   function save() {
     if (viewOnly) return;   // 閲覧専用モードでは保存しない
     dirtySinceBackup = true;
+    editSeq++;   // V2.01.003〜 編集番号
     updateBackupBanner();
     clearTimeout(saveTimer);
     savePending = true;

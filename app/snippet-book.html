@@ -216,6 +216,8 @@
   .rk-box .lock-field { margin-bottom:8px; letter-spacing:.04em; }
   .pk-list { list-style:none; margin:4px 0 0; padding:0; }
   .pk-list li { display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid var(--rule); font-size:12px; }
+  .pk-list li.hist-more { display:block; border-bottom:none; }
+  .hist-more summary { cursor:pointer; font-size:11.5px; color:var(--ink-soft); padding:4px 0; }
   .pk-list .pk-name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .pk-list .pk-date { font-family:var(--mono); font-size:10.5px; color:var(--ink-soft); }
   .pk-list .pk-empty { color:var(--ink-soft); }
@@ -527,7 +529,7 @@
      ファイル本体を変更したら版番号を上げ、公式サイトの
      「バージョン ⇄ ハッシュ」対応表も更新すること。
      ========================================================= */
-  const APP_VERSION = 'V2.00.010';
+  const APP_VERSION = 'V2.00.011';
 
   /* =========================================================
      Storage keys
@@ -979,6 +981,14 @@
     const ops = all.filter(h => !isBackupKind(h.kind)).slice(-HIST_MAX.open);
     return bks.concat(ops).sort((p, q) => p.at - q.at);
   }
+  // V2.00.011〜 バックアップに入れる履歴は、3回前のバックアップから後だけ（それより古いものは次のバックアップに引き継がない・ファイルを大きくしない）
+  const HIST_KEEP_BACKUPS = 3;
+  function historyForBackup(h) {
+    const bks = (h || []).filter(x => isBackupKind(x.kind));
+    if (bks.length <= HIST_KEEP_BACKUPS + 1) return (h || []).slice();   // 今回 ＋ 3回前まで
+    const from = bks[bks.length - 1 - HIST_KEEP_BACKUPS].at;
+    return h.filter(x => x.at >= from);
+  }
   // V2.00.010〜 開いた・閲覧したことを、この端末の金庫の履歴に残す（書けなくても止めない）
   async function noteHistory(kind, how) {
     if (!vault || vault.version !== 5) return;
@@ -1091,6 +1101,7 @@
     new:     ['あなたの復元キー', '新しい端末で開くときや、パスキーが使えないときに使います。'],
     migrate: ['あなたの復元キー', 'これからはマスターパスワードの代わりにこの復元キーを使います（パスキーが使えないときだけ）。'],
     regen:   ['新しい復元キー', '「控えました」を押すと、古い復元キーではこの端末のデータを開けなくなります。ただし前に書き出したバックアップは古い復元キーで開けるままです。漏れたかもしれないときは「鍵をすべて作り直す」を使ってください。'],
+    legacy:  ['新しい復元キー', '前の版のバックアップには改ざんを見分ける印が無いので、ファイルの鍵の情報は使わず、新しい鍵と復元キーで始めます。前の復元キーは使いません。'],
     rekey:   ['新しい復元キー', '鍵をすべて作り直します。登録したパスキーは外れるので、あとで登録し直してください。'],
   };
   let rkPrintName = '';
@@ -1262,6 +1273,18 @@
         const r = await inspectV5(dk, data, file.name, text);   // V2.00.010〜 改ざんを確かめる
         if (r.auth === 'bad') { dk.fill(0); errEl.textContent = TAMPER_MSG; return; }
         if (!nameTagOkOrAsk(r)) { dk.fill(0); errEl.textContent = '取りこみをやめました'; return; }
+        if (r.auth !== 'ok') {
+          // V2.00.011〜 印の無いファイル（V2.00.009 まで・印を消した書きかえも同じ形）は、外側の鍵の情報（wraps・revoked）を信用しない。
+          // 開けた中身だけを使い、新しい鍵と復元キーで始める（パスキーは登録し直す）
+          dk.fill(0);
+          errEl.textContent = '';
+          if (await startNewVault(normalize(toBook(content, file.name)), 'legacy')) {
+            markNeedsBackup();
+            setStatus('前の版のバックアップから、中身だけを新しい鍵で始めました。パスキーを登録し直し、新しい形でバックアップを取り直してください');
+            await offerPasskey();
+          }
+          return;
+        }
         const meta = { vaultId:data.vaultId, wraps:data.wraps, revoked: Array.isArray(data.revoked) ? data.revoked.filter(x => typeof x === 'string') : undefined, history: r.history };
         await commitVault(meta, dk, normalize(toBook(content, file.name)));   // V2.00.008〜 1回で書く
         errEl.textContent = '';
@@ -1322,8 +1345,13 @@
           restored = await decryptJSON(await importDK(useDk), wrapper);
           insp = await inspectV5(useDk, wrapper, pendingRestore.fname, pendingRestore.text);   // V2.00.010〜 改ざんを確かめる
           if (insp.auth === 'bad') throw new Error(TAMPER_MSG);
-          if (wrapper.vaultId !== vault.vaultId) {
+          if (wrapper.vaultId !== vault.vaultId && insp.auth === 'ok') {
             useVault = { ...useVault, history: insp.history };
+          } else if (wrapper.vaultId !== vault.vaultId) {
+            // V2.00.011〜 印の無いファイルの鍵の情報（wraps・revoked）は使わない。この端末のいまの鍵のまま、中身だけ入れかえる
+            if (useDk !== dk) useDk.fill(0);
+            useDk = dk; useVault = vault;
+            note = '（前の版で書き出したファイルなので、中身だけを取りこみ、鍵はこの端末のいまのままにしました）';
           } else if (insp.auth === 'ok') {   // 同じ金庫で印が合う：パスキーの一覧と履歴を合わせる
             const m = mergePasskeys(vault, wrapper);
             useVault = { ...vault, wraps: m.wraps, revoked: m.revoked, history: mergeHistory(vault.history, insp.history) };
@@ -1495,18 +1523,28 @@
     $('addPasskeyBtn').disabled = !passkeyBase;
     $('keysErr').textContent = passkeyBase ? '' : 'この開き方（アドレス）ではパスキーを登録できません。https のアドレスで開いてください。';
   }
-  // V2.00.010〜 履歴（新しい順・それぞれ 30 件まで出す）
+  // V2.00.010〜 履歴（新しい順）。V2.00.011〜 最新3行だけ出し、ほかはたたむ
+  const HIST_SHOW = 3;
   function renderHistory() {
     const h = (vault && vault.history) || [];
     const fill = (id, rows, empty) => {
       const ul = $(id); ul.innerHTML = '';
       if (!rows.length) { ul.innerHTML = `<li class="pk-empty">${empty}</li>`; return; }
-      rows.slice().reverse().slice(0, 30).forEach(x => {
+      const row = x => {
         const li = document.createElement('li');
         li.innerHTML = `<span class="pk-name">${esc(histText(x))}</span><span class="pk-date">${esc(histWhat(x))}${x.tag ? '　印 ' + esc(x.tag) : ''}</span>`;
-        ul.appendChild(li);
-      });
-      if (rows.length > 30) { const li = document.createElement('li'); li.className = 'pk-empty'; li.textContent = `ほか ${rows.length - 30} 件（古いもの）`; ul.appendChild(li); }
+        return li;
+      };
+      const newest = rows.slice().reverse();
+      newest.slice(0, HIST_SHOW).forEach(x => ul.appendChild(row(x)));
+      if (newest.length > HIST_SHOW) {   // V2.00.011〜 最新3行のほかは、押したときだけ出す
+        const li = document.createElement('li'); li.className = 'hist-more';
+        const det = document.createElement('details');
+        const sum = document.createElement('summary'); sum.textContent = `ほか ${newest.length - HIST_SHOW} 件を見る（古いもの）`;
+        const inner = document.createElement('ul'); inner.className = 'pk-list';
+        newest.slice(HIST_SHOW).forEach(x => inner.appendChild(row(x)));
+        det.append(sum, inner); li.appendChild(det); ul.appendChild(li);
+      }
     };
     fill('bkHistList', h.filter(x => isBackupKind(x.kind)), 'まだありません（V2.00.010 から残します）');
     fill('openHistList', h.filter(x => !isBackupKind(x.kind)), 'まだありません（V2.00.010 から残します）');
@@ -2239,7 +2277,7 @@
     const ep = lockEpoch;
     const dk = dkRaw;
     const entry = histEntry(kind);
-    const out = await makeV5File({ ...vault, history: mergeHistory(vault.history, [entry]) }, cryptoKey, dk, fullBook(true), extra);
+    const out = await makeV5File({ ...vault, history: historyForBackup(mergeHistory(vault.history, [entry])) }, cryptoKey, dk, fullBook(true), extra);
     const text = JSON.stringify(out, null, 2);
     const tag = await fileNameTag(dk, text);
     if (lockedSince(ep)) return null;   // 途中でロックされた → 書き出さない

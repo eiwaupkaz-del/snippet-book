@@ -25,7 +25,7 @@ jobs:
       - name: 鍵のしくみのテスト
         run: node tests/test-core.mjs
       - name: 自動パスワード・外のサイトを読まない・CSP のテスト
-        run: node tests/test-v2011.mjs app/snippet-book.html deploy/snippet.conf
+        run: node tests/test-v2101.mjs app/snippet-book.html deploy/snippet.conf
       - name: リポジトリのファイルが SHA256SUMS と一致するか
         working-directory: app
         run: sha256sum -c SHA256SUMS

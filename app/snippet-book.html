@@ -414,10 +414,25 @@
       上書き用の暗号バックアップを書き出しました。<strong style="color:var(--focus);">「ロックする」を押すと、ロック画面に戻ります。</strong>
       次回このバックアップから起動すると、この時点の内容に戻せます。
     </div>
-    <p class="dlg-note">保存先は、選んだ場所です（パソコンの Chrome・Edge は保存先を選ぶ画面が出ます。出ないブラウザはダウンロード先のフォルダ、iPhone は「ファイル」アプリ等）。ファイル名の最後の10文字は改ざんを見分ける印なので、名前は変えないでください。別の端末に同期するときは、このファイルを相手の端末に渡し、起動画面の「上書き用バックアップから開く」で読み込んでください。</p>
+    <p class="dlg-note">保存先は、選んだ場所です（パソコンの Chrome・Edge は保存先を選ぶ画面、iPhone・iPad は共有の画面の「“ファイル”に保存」で選べます。どちらも出ないブラウザはダウンロード先のフォルダ）。ファイル名の最後の10文字は改ざんを見分ける印なので、名前は変えないでください。別の端末に同期するときは、このファイルを相手の端末に渡し、起動画面の「上書き用バックアップから開く」で読み込んでください。</p>
     <div class="lock-row" style="justify-content:flex-end;">
       <button class="btn btn-primary" id="exitDone">ロックする</button>
     </div>
+  </div>
+</div>
+
+<!-- V2.01.001〜 iPhone・iPad：保存先を選ぶ（共有シート） -->
+<div class="overlay hidden" id="shareOverlay">
+  <div class="dialog">
+    <h2>保存の準備ができました</h2>
+    <p class="dlg-sub" id="shareFileName">—</p>
+    <p class="dlg-note">「保存先を選ぶ」を押すと共有の画面が出ます。<b>「“ファイル”に保存」</b>を選ぶと、iCloud Drive やこの iPhone（iPad）の中の、好きなフォルダに保存できます。ファイル名は変えないでください（最後の10文字は改ざんを見分ける印です）。</p>
+    <div class="lock-row" style="justify-content:flex-end;flex-wrap:wrap;">
+      <button class="btn btn-quiet" id="shareCancel">やめる</button>
+      <button class="btn" id="shareDl">ダウンロードに保存</button>
+      <button class="btn btn-primary" id="shareGo">保存先を選ぶ</button>
+    </div>
+    <p class="lock-err" id="shareErr"></p>
   </div>
 </div>
 
@@ -529,7 +544,7 @@
      ファイル本体を変更したら版番号を上げ、公式サイトの
      「バージョン ⇄ ハッシュ」対応表も更新すること。
      ========================================================= */
-  const APP_VERSION = 'V2.00.011';
+  const APP_VERSION = 'V2.01.001';
 
   /* =========================================================
      Storage keys
@@ -1010,6 +1025,13 @@
     let history = [];
     if (auth === 'ok' && file.hist) {
       try { history = mergeHistory(await decryptJSON(await importDK(dk), file.hist), []); } catch { auth = 'bad'; }
+    }
+    // V2.01.001〜 ファイルの中の「今回のバックアップ」の行には、まだ印が無い（印は中身ができてから作るため）。
+    // ファイル名の印が中身と合ったときだけ、その行（同じ種類でいちばん新しい・印の無い行）に書き足す
+    if (auth === 'ok' && name === true) {
+      const kind = /-obk-/i.test(String(fname)) ? 'obk' : 'bk';
+      const own = history.filter(h => h.kind === kind).pop();
+      if (own && !own.tag) own.tag = tag;
     }
     return { auth, name, history };
   }
@@ -1759,7 +1781,8 @@
   function wipeScreen() {
     if (rkCloser) rkCloser(false);
     if (openCloser) openCloser(null);
-    ['keysOverlay','openOverlay','rkOverlay','sendOverlay','exitOverlay'].forEach(id => document.getElementById(id).classList.add('hidden'));
+    if (shareCloser) shareCloser({ how:'cancelled' });   // V2.01.001〜 保存先を選ぶ画面も閉じる（保存しない）
+    ['keysOverlay','openOverlay','rkOverlay','sendOverlay','exitOverlay','shareOverlay'].forEach(id => document.getElementById(id).classList.add('hidden'));
     $('sendPw').textContent = '—'; $('sendFileName').textContent = '—';
     $('exitFileName').textContent = '—';
     $('rkCode').textContent = '—'; $('rkConfirm').value = ''; $('rkErr').textContent = '';
@@ -2268,8 +2291,39 @@
         return { how:'saved', name: h.name || filename };
       }
     }
+    // V2.01.001〜 iPhone・iPad には保存先を選ぶ画面が無いので、共有シート（「"ファイル"に保存」で場所を選べる）を使う。
+    // 暗号化のあいだに「押した」扱いが切れると共有シートを出せないので、準備ができたら、もう一度押してもらう
+    if (isIOS && navigator.canShare) {
+      const f = new File([text], filename, { type:'application/json' });
+      let can = false; try { can = navigator.canShare({ files:[f] }); } catch {}
+      if (can) return await shareSave(f, text);
+    }
     downloadBlob(filename, text);
     return { how:'downloaded', name:filename };
+  }
+  let shareCloser = null;
+  function shareSave(f, text) {
+    $('shareFileName').textContent = f.name; $('shareErr').textContent = '';
+    $('shareOverlay').classList.remove('hidden');
+    return new Promise(resolve => {
+      const close = r => {
+        shareCloser = null;
+        $('shareOverlay').classList.add('hidden');
+        $('shareFileName').textContent = '—'; $('shareErr').textContent = '';
+        $('shareGo').onclick = $('shareDl').onclick = $('shareCancel').onclick = null;
+        resolve(r);
+      };
+      shareCloser = close;
+      $('shareGo').onclick = async () => {
+        try { await navigator.share({ files:[f] }); close({ how:'saved', name:f.name }); }
+        catch (e) {
+          if (e && e.name === 'AbortError') { $('shareErr').textContent = '保存しませんでした。もう一度「保存先を選ぶ」を押すか、「やめる」を押してください'; return; }
+          $('shareErr').textContent = '共有の画面を出せませんでした。「ダウンロードに保存」を使ってください';
+        }
+      };
+      $('shareDl').onclick = () => { downloadBlob(f.name, text); close({ how:'downloaded', name:f.name }); };
+      $('shareCancel').onclick = () => close({ how:'cancelled', name:f.name });
+    });
   }
   // V2.00.010〜 V2 のバックアップを作って保存する：履歴に1行足し、ファイル名に印を付ける。保存したら金庫の履歴にも残す
   async function saveV5Backup(kind, extra) {

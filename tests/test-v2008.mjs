@@ -1,5 +1,5 @@
-// 依頼101〜105 スニペット帳 V2.00.003〜 の手元テスト（Node 18 以降）
-// 使い方：node test-v2007.mjs [snippet-book.html] [snippet.conf]
+// 依頼101〜106 スニペット帳 V2.00.003〜 の手元テスト（Node 18 以降）
+// 使い方：node test-v2008.mjs [snippet-book.html] [snippet.conf]
 // 1. 自動パスワード（genPassphrase）を HTML から切り出して試す
 // 2. 外のサイトを読まない・フォントがそろっている
 // 3. CSP のハッシュが HTML のスクリプトと合う
@@ -88,7 +88,7 @@ console.log('5. CSP（nginx の設定）');
 }
 
 console.log('6. 版');
-ok(/const APP_VERSION = 'V2\.00\.007';/.test(html), "APP_VERSION が 'V2.00.007'");
+ok(/const APP_VERSION = 'V2\.00\.008';/.test(html), "APP_VERSION が 'V2.00.008'");
 
 console.log('7. 取り込みの検査（V2.00.004〜）');
 {
@@ -169,10 +169,11 @@ console.log('12. 鍵の処理の途中でロックしても、ロックのあと
 {
   const sect = (from, to) => { const i = html.indexOf(from); return i < 0 ? '' : html.slice(i, html.indexOf(to, i + from.length)); };
   const nv = sect('async function startNewVault(', '\n  }\n');
-  ok(/const ep = lockEpoch;/.test(nv) && /await encryptJSON\(key, content\);\s*if \(lockedSince\(ep\)\) \{ dk\.fill\(0\); return false; \}/.test(nv), '鍵をすべて作り直す・新しく作る：計算のあと、ロックされていたら何も書かずにやめる');
-  const tail = nv.slice(nv.indexOf('if (lockedSince(ep))'), nv.indexOf('enterApp();'));
-  ok(tail.length > 0 && !/await /.test(tail.replace(/\/\/[^\n]*/g, '')), 'ロックを確かめてから enterApp までは await をはさまない（データと鍵の書きこみがずれない・開き直さない）');
-  ok(!/await openSession\(dk\);\s*book = content;\s*await persist\(\);/.test(nv), '前の形（openSession → persist → saveVaultMeta を await でつなぐ）は使わない');
+  const cv = sect('async function commitVault(', '\n  }\n');
+  ok(/const ep = lockEpoch;/.test(nv) && /commitVault\(newVaultMeta\(\[wrap\]\), dk, content, ep\)/.test(nv) && /if \(!ok\) \{ dk\.fill\(0\); return false; \}/.test(nv), '鍵をすべて作り直す・新しく作る：ロックされていたら何も書かずにやめる（commitVault に番号を渡す）');
+  ok(/await encryptJSON\(key, content\);\s*if \(ep !== undefined && lockedSince\(ep\)\) return false;\s*const next = [^\n]*\n\s*await writeVault\(next\);/.test(cv), 'commitVault：計算のあと、ロックを確かめてから1回で書く');
+  const cvTail = cv.slice(cv.indexOf('// ここから先は'));
+  ok(cvTail.length > 0 && !/await /.test(cvTail.replace(/\/\/[^\n]*/g, '')) && /vault = next; dkRaw = dk; cryptoKey = key; book = content;/.test(cvTail), '書けたあと、await をはさまずに vault・鍵・本体を切りかえる（開き直さない）');
   const pk = sect('async function addPasskey()', '\n  }\n');
   ok(/await makePasskeyWrap\([^\n]*\n[^\n]*\n\s*if \(lockedSince\(ep\) \|\| !dkRaw\) throw stopped\(\);/.test(pk), 'パスキーの登録：包んだあとにもう一度確かめ、ロックされていたら足さない');
   const pkTail = pk.slice(pk.indexOf('// ここから先は'), pk.indexOf('await saving;'));
@@ -183,7 +184,28 @@ console.log('12. 鍵の処理の途中でロックしても、ロックのあと
   const sv = sect('function save()', '\n  }\n');
   ok(/if \(!lockedSince\(ep\)\) setStatus\(`保存しました/.test(sv), 'ふだんの保存：ロックのあとに「保存しました」を出さない');
   const rm = sect("del.textContent = '外す'", 'li.appendChild(del)');
-  ok(/const saving = saveVaultMeta\(\);[\s\S]*renderKeys\(\);[\s\S]*await saving;/.test(rm), 'パスキーを外す：書いてから描くまで await をはさまない');
+  ok(/await writeVault\(next\);[\s\S]*vault = next;\s*markNeedsBackup\(\);\s*renderKeys\(\);/.test(rm), 'パスキーを外す：書けてから切りかえて描く');
+}
+
+console.log('13. データと鍵の情報は1回で書く・開けないときに上書きしない（V2.00.008〜）');
+{
+  const sect = (from, to) => { const i = html.indexOf(from); return i < 0 ? '' : html.slice(i, html.indexOf(to, i + from.length)); };
+  ok(!/store\.set\(DATA5_KEY/.test(html), '本体を別の項目（snippet-book:v5:data）に書くところは1つも無い（読むだけ）');
+  ok(!/saveVaultMeta/.test(html), '鍵の情報だけを書く saveVaultMeta は使わない');
+  const setMeta = (html.match(/store\.set\(META5_KEY/g) || []).length;
+  ok(setMeta === 1 && /async function writeVault\(next\) \{\s*try \{ await store\.set\(META5_KEY, JSON\.stringify\(next\)\); \}\s*catch \{ throw new Error\(SAVE_FAIL_MSG\); \}/.test(html), '金庫を書くのは writeVault の1か所だけ・書けなければ throw');
+  const ps = sect('async function persist()', '\n  }\n');
+  ok(/const next = \{ \.\.\.cur, data: blob \};\s*await writeVault\(next\);/.test(ps), 'ふだんの保存も、鍵の情報と本体を一緒に1回で書く');
+  const pk = sect('async function addPasskey()', '\n  }\n');
+  ok(/const next = \{ \.\.\.vault, wraps: vault\.wraps\.concat\(w\) \};\s*await writeVault\(next\);[\s\S]*vault = next;[\s\S]*showToast\('パスキーを登録しました'\)/.test(pk), 'パスキーの登録：書けてから切りかえて知らせる');
+  const rg = sect("$('regenRkBtn').addEventListener", "$('rekeyBtn')");
+  ok(/try \{ await writeVault\(next\); \}[\s\S]*catch \(e\) \{[\s\S]*復元キーは前のままです[\s\S]*return;\s*\}[\s\S]*vault = next;/.test(rg), '復元キーの作り直し：書けなければ前のまま・書けてから切りかえる');
+  const fu = sect('async function finishUnlock(', '\n  }\n');
+  ok(!/normalize\(SEED\); await persist\(\)/.test(html), '開けないときに見本で上書きして保存する形は無い');
+  ok(/catch \{[\s\S]{0,200}cryptoKey = null;[\s\S]{0,200}データを開けませんでした[\s\S]{0,120}手を付けていません[\s\S]{0,80}return;/.test(fu), '開けないときは、鍵を消してロック画面のまま知らせ、データには手を付けない');
+  ok(/const blob = await readDataBlob\(vault\);/.test(fu) && /if \(v && v\.data && v\.data\.iv && v\.data\.ct\) return v\.data;[\s\S]{0,80}store\.get\(DATA5_KEY\)/.test(html), '新しい形（meta.data）を先に読み、無ければ前の形（v5:data）を読む');
+  ok(/if \(!vault\.data\) \{ try \{ await persist\(\); \} catch \{\} \}/.test(fu), '前の形で開けたら、新しい形へ移す');
+  ok(/if \(next\.data\) dropLegacyData\(\);/.test(html), '新しい形で書けたら、前の置き場を消す');
 }
 
 console.log(`合格 ${pass} / 不合格 ${fail}`);

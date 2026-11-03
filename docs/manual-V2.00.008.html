@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<title>スニペット帳 かんたん操作マニュアル（Version 2.00.007 対応）</title>
+<title>スニペット帳 かんたん操作マニュアル（Version 2.00.008 対応）</title>
 <style>
   @page { size: A4; margin: 14mm 13mm 16mm; }
   :root { --ink:#16211C; --soft:#5C6B63; --rule:#C6CDC5; --brass:#A8762C; --seal:#9C3B2E; --red:#BE0B1A; --focus:#2E6F70; }
@@ -55,7 +55,7 @@
   <h1>スニペット帳</h1>
   <div class="bar"></div>
   <div class="sub">かんたん操作マニュアル</div>
-  <div class="ver">Version 2.00.007 対応 ／ 2026年11月</div>
+  <div class="ver">Version 2.00.008 対応 ／ 2026年11月</div>
   <div class="url">https://snippet.eiwa-up.jp/</div>
 </section>
 
@@ -285,6 +285,8 @@
   <tr><td>「復元キーが違います」と出る</td><td>25 文字そろっているか確かめてください。古いバックアップを開くときは、そのバックアップを作ったときの復元キーが必要です（復元キーを作り直した場合）。</td></tr>
   <tr><td>パスキーを登録できない（対応していません）</td><td>その端末・ブラウザは対応していません。毎回復元キーで開いてください。iPhone は iOS 18 以降、Mac は macOS 15 以降が目安です。</td></tr>
   <tr><td>データが消えた・見えない</td><td>別のブラウザや別のアドレスで開いた可能性があります。いつもと同じブラウザ・同じアドレス（https://snippet.eiwa-up.jp/）で開き直してください。バックアップがあれば「上書き用バックアップから開く」で戻せます。</td></tr>
+  <tr><td>「この端末に保存できませんでした」と出る</td><td>端末の保存の容量がいっぱいかもしれません。そのときの作業（鍵の作り直し・パスキーの登録など）は取りやめになり、データと鍵は前のままです（Version 2.00.008 から）。いらないカードを消す・ほかのサイトのデータを消すなどしてから、やり直してください。念のため、すぐにバックアップを取ってください。</td></tr>
+  <tr><td>「データを開けませんでした（鍵とデータが合いません）」と出る</td><td>この端末のデータが壊れているかもしれません。アプリはデータに手を付けずに止まります（Version 2.00.008 から。前の版は見本のデータで上書きしていました）。バックアップがあれば「上書き用バックアップから開く」で戻せます。</td></tr>
   <tr><td>パスキーも復元キーも無い</td><td>残念ながら中身は復元できません。「パスキーも復元キーも無い」でリセットし、新しく作り直してください。バックアップと、そのときの復元キーがあれば、取り込めます。</td></tr>
   <tr><td>バックアップファイルを取り込めない</td><td>「上書き用バックアップから開く」で取り込めるのは、「バックアップしてロック」で作ったファイルだけです。それ以外は、開いた後の「読み込み」を使ってください。</td></tr>
   <tr><td>前の版のマスターパスワードを忘れた</td><td>前の版のデータは開けません。前の版のバックアップがあっても、マスターパスワードが無ければ開けません。</td></tr>
@@ -314,8 +316,8 @@
 <p>アプリのファイルが書きかえられていないかは、「ハッシュ値（SHA-256）」で確かめられます。公式サイトに載っている値と一致すれば本物です。</p>
 <table>
   <tr><th style="width:24%">版</th><th>SHA-256（snippet-book.html）</th></tr>
+  <tr><td>Version 2.00.008</td><td class="hash">993f31f5d75410802031ab291c35a6aeb60854edd19fcfa95c98df68fdf7059b</td></tr>
   <tr><td>Version 2.00.007</td><td class="hash">02b7ac95f04a5665d6583ec6aed1ad77c2aa0872352c4c9a1277c5a4203b412b</td></tr>
-  <tr><td>Version 2.00.006</td><td class="hash">cb16047b5e68014e798de20d399e6446034cff768de7c2abee03380fb4920694</td></tr>
   <tr><td>Version 2.00.003</td><td class="hash">dae7fd31aedfdac2fd78f1da7458122d4157b29d4264ca21579e49d3cd37cd39</td></tr>
   </table>
 <p>Mac のターミナルで確かめる方法：</p>
@@ -323,6 +325,6 @@
 <p>Windows の PowerShell で確かめる方法：</p>
 <p><code>Invoke-WebRequest https://snippet.eiwa-up.jp/ -OutFile snippet-book.html; Get-FileHash snippet-book.html -Algorithm SHA256</code></p>
 
-<div class="foot">スニペット帳 かんたん操作マニュアル ／ Version 2.00.007 対応<br>このマニュアルは、アプリの更新に合わせて内容が変わることがあります。</div>
+<div class="foot">スニペット帳 かんたん操作マニュアル ／ Version 2.00.008 対応<br>このマニュアルは、アプリの更新に合わせて内容が変わることがあります。</div>
 </body>
 </html>

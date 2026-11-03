@@ -510,15 +510,15 @@
      ファイル本体を変更したら版番号を上げ、公式サイトの
      「バージョン ⇄ ハッシュ」対応表も更新すること。
      ========================================================= */
-  const APP_VERSION = 'V2.00.007';
+  const APP_VERSION = 'V2.00.008';
 
   /* =========================================================
      Storage keys
      ========================================================= */
   const META_KEY = 'snippet-book:v4:meta';   // V1 の形（引っ越しのときだけ読む）
   const DATA_KEY = 'snippet-book:v4:data';
-  const META5_KEY = 'snippet-book:v5:meta';  // { version, vaultId, wraps[] }  平文で保存（DK を包んだものだけ）
-  const DATA5_KEY = 'snippet-book:v5:data';  // { iv, ct }  DK で暗号化した本体
+  const META5_KEY = 'snippet-book:v5:meta';  // { version, vaultId, wraps[], data:{iv,ct} }  V2.00.008〜 鍵の情報と DK で暗号化した本体を1つにまとめて保存（1回の書きこみで全部入れかわる）
+  const DATA5_KEY = 'snippet-book:v5:data';  // V2.00.007 までの本体の置き場（読むだけ。新しい形で書けたら消す）
 
   /* ---------------------------------------------------------
      Storage layer
@@ -857,7 +857,32 @@
   async function loadJSON(k) {
     try { const r = await store.get(k); return r && r.value ? JSON.parse(r.value) : null; } catch { return null; }
   }
-  async function saveVaultMeta() { await store.set(META5_KEY, JSON.stringify(vault)); }
+  /* V2.00.008〜 金庫（鍵の情報＋暗号化した本体）は1つの項目に1回で書く。
+     書けなかったら何も変えずに知らせる（呼ぶ側は、書けてから vault・鍵・画面を切りかえる） */
+  const SAVE_FAIL_MSG = 'この端末に保存できませんでした（保存の容量がいっぱいかもしれません）。何も変えていません';
+  async function writeVault(next) {
+    try { await store.set(META5_KEY, JSON.stringify(next)); }
+    catch { throw new Error(SAVE_FAIL_MSG); }
+    if (next.data) dropLegacyData();
+  }
+  function dropLegacyData() { try { store.delete(DATA5_KEY).catch(() => {}); } catch {} }
+  // 本体を読む：新しい形（meta.data）を先に、無ければ V2.00.007 までの置き場から
+  async function readDataBlob(v) {
+    if (v && v.data && v.data.iv && v.data.ct) return v.data;
+    try { const r = await store.get(DATA5_KEY); const d = JSON.parse(r.value); return d && d.iv && d.ct ? d : null; } catch { return null; }
+  }
+  // 計算（暗号化）をすませてから、1回で書き、書けたら vault・鍵・本体を切りかえる。ep を渡すと、ロックされていたら書かずに false
+  async function commitVault(meta, dk, content, ep) {
+    const key = await importDK(dk);
+    const blob = await encryptJSON(key, content);
+    if (ep !== undefined && lockedSince(ep)) return false;
+    const next = { version:5, vaultId: meta.vaultId, wraps: meta.wraps, data: blob };
+    await writeVault(next);   // 失敗したら throw（何も変わっていない）
+    // ここから先は await をはさまない
+    if (dkRaw && dkRaw !== dk) dkRaw.fill(0);
+    vault = next; dkRaw = dk; cryptoKey = key; book = content;
+    return true;
+  }
   async function openSession(dk) {
     if (dkRaw && dkRaw !== dk) dkRaw.fill(0);
     dkRaw = dk;
@@ -1016,13 +1041,13 @@
     const w = await makePasskeyWrap(dkRaw, r.prfOut, r.credId, r.prfSalt, label);
     r.prfOut.fill(0);
     if (lockedSince(ep) || !dkRaw) throw stopped();   // V2.00.007〜 包むあいだにロックされた → 足さず・保存せず・知らせない
+    const next = { ...vault, wraps: vault.wraps.concat(w) };
+    await writeVault(next);   // V2.00.008〜 書けてから切りかえる（書けなければ throw・何も変えない）
     // ここから先は await をはさまない
-    vault.wraps.push(w);
-    const saving = saveVaultMeta();
+    vault = next;
     markNeedsBackup();
     showToast('パスキーを登録しました');
     setStatus(`パスキー「${label}」を登録しました。次からは「🔑 パスキーで開く」で開けます`);
-    await saving;
     return true;
   }
   async function offerPasskey(message) {
@@ -1060,19 +1085,14 @@
     const dk = newDK();
     const rk = genRecoveryKey();
     if (!(await showRecoveryKey(rk, kind, content.name))) { dk.fill(0); return false; }
-    // V2.00.007〜 先に、時間のかかる計算（包む・暗号化）だけを、まわりを変えずにすませる
+    // V2.00.007〜 先に、時間のかかる計算（包む・暗号化）を、まわりを変えずにすませる
+    // V2.00.008〜 鍵の情報と本体を1回で書き、書けてから切りかえる（片方だけ書けてずれることが無い）
     const wrap = await makeRecoveryWrap(dk, rk);
-    const key = await importDK(dk);
-    const blob = await encryptJSON(key, content);
-    if (lockedSince(ep)) { dk.fill(0); return false; }   // 途中でロックされた → 何も書かず、開き直さない
-    // ここから先は await をはさまない（途中にロックが割りこめないので、データと鍵の書きこみがずれない）
-    const meta = newVaultMeta([wrap]);
-    const w1 = store.set(DATA5_KEY, JSON.stringify(blob));
-    const w2 = store.set(META5_KEY, JSON.stringify(meta));
-    if (dkRaw && dkRaw !== dk) dkRaw.fill(0);
-    vault = meta; dkRaw = dk; cryptoKey = key; book = content;
+    let ok;
+    try { ok = await commitVault(newVaultMeta([wrap]), dk, content, ep); }
+    catch (e) { dk.fill(0); throw e; }
+    if (!ok) { dk.fill(0); return false; }   // 途中でロックされた → 何も書かず、開き直さない
     enterApp();
-    await Promise.all([w1, w2]);
     return true;
   }
 
@@ -1089,11 +1109,7 @@
         const dk = await askOpen(data.wraps, 'バックアップから始める', file.name);
         if (!dk) { errEl.textContent = ''; return; }
         const content = await decryptJSON(await importDK(dk), data);
-        vault = { version:5, vaultId:data.vaultId, wraps:data.wraps };
-        await openSession(dk);
-        book = normalize(toBook(content, file.name));
-        await persist();
-        await saveVaultMeta();
+        await commitVault({ vaultId:data.vaultId, wraps:data.wraps }, dk, normalize(toBook(content, file.name)));   // V2.00.008〜 1回で書く
         errEl.textContent = '';
         enterApp();
         setStatus('バックアップから始めました');
@@ -1160,11 +1176,8 @@
       }
       if (useDk !== dk) dk.fill(0);
       if (!restored.name) restored.name = wrapper.name || 'snippet-book';
-      vault = useVault;
-      await openSession(useDk);
-      book = normalize(toBook(restored, pendingRestore.fname));
-      await persist();               // 端末に新しい内容を保存（上書き）
-      await saveVaultMeta();
+      try { await commitVault(useVault, useDk, normalize(toBook(restored, pendingRestore.fname))); }   // V2.00.008〜 1回で書く（上書き）
+      catch (e) { if (useDk !== dk) useDk.fill(0); errEl.textContent = e.message; return; }
       clearRestore();
       enterApp();
       setStatus('上書きバックアップで起動しました');
@@ -1173,10 +1186,19 @@
 
     // 通常起動：前回データで開く
     await openSession(dk);
-    try {
-      const dataRaw = await store.get(DATA5_KEY);
-      book = normalize(await decryptJSON(cryptoKey, JSON.parse(dataRaw.value)));
-    } catch { book = normalize(SEED); await persist(); }
+    const blob = await readDataBlob(vault);
+    if (!blob) {
+      book = normalize(SEED);   // まだ本体が無い（作りかけ）。書くのは、編集したとき
+    } else {
+      try { book = normalize(await decryptJSON(cryptoKey, blob)); }
+      catch {
+        // V2.00.008〜 開けないときは、見本で上書きしない（前の版はここで見本を保存して、元のデータが消えた）
+        cryptoKey = null; if (dkRaw) dkRaw.fill(0); dkRaw = null;
+        errEl.textContent = 'データを開けませんでした（鍵とデータが合いません）。この端末のデータには手を付けていません。バックアップがあれば「上書き用バックアップから開く」で戻せます。';
+        return;
+      }
+      if (!vault.data) { try { await persist(); } catch {} }   // 前の形（別々の置き場）なら、新しい形へ移す
+    }
     enterApp();
   }
 
@@ -1241,7 +1263,7 @@
         return;
       }
       // 新しい形で読み戻せることを確かめてから、古い形を消す
-      const check = await decryptJSON(cryptoKey, JSON.parse((await store.get(DATA5_KEY)).value));
+      const check = await decryptJSON(cryptoKey, (await loadJSON(META5_KEY)).data);
       if (JSON.stringify(normalize(check)) !== JSON.stringify(book)) throw new Error('読み戻した中身が一致しません');
       await store.delete(META_KEY);
       await store.delete(DATA_KEY);
@@ -1250,6 +1272,7 @@
       await offerPasskey();
     } catch (e) {
       setStatus('引っ越しの確かめでつまずきました（古いデータは消していません）：' + e.message, true);
+      if (appEl.classList.contains('hidden')) errEl.textContent = '引っ越しできませんでした（古いデータは消していません）：' + e.message;   // V2.00.008〜 移る前に止まったときは、この画面に出す
     }
   }
 
@@ -1283,12 +1306,13 @@
       del.className = 'cred-copy'; del.textContent = '外す';
       del.addEventListener('click', async () => {
         if (!confirm(`パスキー「${w.label}」を外しますか？\n\nこのパスキーでは開けなくなります。端末のパスワード管理に残る「スニペット帳」のパスキーは、そちらで消してください。`)) return;
-        vault.wraps = vault.wraps.filter(x => x !== w);
-        const saving = saveVaultMeta();   // V2.00.007〜 書いてから描くまで await をはさまない
+        const next = { ...vault, wraps: vault.wraps.filter(x => x !== w) };
+        try { await writeVault(next); }   // V2.00.008〜 書けてから切りかえる
+        catch (e) { showToast('外せませんでした', true); $('keysErr').textContent = e.message; return; }
+        vault = next;
         markNeedsBackup();
         renderKeys();
         showToast('パスキーを外しました');
-        await saving;
       });
       li.appendChild(del);
       ul.appendChild(li);
@@ -1311,14 +1335,19 @@
     if (lockedSince(ep) || !dkRaw) return;
     const nw = await makeRecoveryWrap(dkRaw, rk);
     if (lockedSince(ep)) return;   // V2.00.007〜 包むあいだにロックされた → 変えない（古い復元キーのまま）
+    const next = { ...vault, wraps: vault.wraps.filter(w => w.type !== 'recovery').concat(nw) };
+    try { await writeVault(next); }   // V2.00.008〜 書けてから切りかえる
+    catch (e) {
+      $('keysErr').textContent = e.message + '。復元キーは前のままです（いま控えた新しい復元キーは使えません）';
+      showToast('復元キーを作り直せませんでした', true);
+      return;
+    }
     // ここから先は await をはさまない
-    vault.wraps = vault.wraps.filter(w => w.type !== 'recovery').concat(nw);
-    const saving = saveVaultMeta();
+    vault = next;
     markNeedsBackup();
     renderKeys();
     showToast('復元キーを作り直しました');
     setStatus('復元キーを作り直しました。新しい形でバックアップを取り直してください');
-    await saving;
   });
   $('rekeyBtn').addEventListener('click', async () => {
     if (!confirm('鍵をすべて作り直します。\n\n・新しい復元キーを作ります\n・登録したパスキーはすべて外れます（あとで登録し直します）\n・前に書き出したバックアップは、そのときのパスキーか復元キーでしか開けません\n\n続けますか？')) return;
@@ -1541,10 +1570,15 @@
     return { nm, date, stamp: `${nm}-${date}` };
   }
 
+  // V2.00.008〜 本体は鍵の情報と同じ項目に、1回で書く（書けなければ throw。呼ぶ側が知らせる）
   async function persist() {
-    if (!cryptoKey) return;
+    if (!cryptoKey || !vault) return;
+    const v = vault;
     const blob = await encryptJSON(cryptoKey, book);
-    await store.set(DATA5_KEY, JSON.stringify(blob));
+    const cur = vault && vault.vaultId === v.vaultId ? vault : v;   // 途中でロック → 読み直した同じ金庫でも書ける
+    const next = { ...cur, data: blob };
+    await writeVault(next);
+    if (vault && vault.vaultId === next.vaultId) vault.data = blob;
   }
   function save() {
     if (viewOnly) return;   // 閲覧専用モードでは保存しない

@@ -12,7 +12,7 @@ const a = html.indexOf('/*<core>'), b = html.indexOf('/*</core>*/');
 if (a < 0 || b < 0) { console.error('core の目印が見つかりません'); process.exit(1); }
 const names = ['enc','dec','b64','b64url','randomBytes','PBKDF2_ITER_OLD','PBKDF2_ITER_NEW','deriveKey','encryptJSON','decryptJSON',
   'newDK','importDK','genRecoveryKey','normalizeRecoveryKey','formatRecoveryKey','makeRecoveryWrap','makePasskeyWrap',
-  'openWithRecovery','openWithPrf','newVaultMeta','isV5File','isV4File','makeV5File','openV4File','makePwFile','RK_ABC'];
+  'openWithRecovery','openWithPrf','newVaultMeta','isV5File','isV4File','makeV5File','openV4File','makePwFile','RK_ABC','checkV5Auth','fileNameTag','nameTagOf','canonJSON'];
 const C = new Function('crypto', html.slice(a, b) + `\nreturn { ${names.join(', ')} };`)(globalThis.crypto || webcrypto);
 
 let pass = 0, fail = 0;
@@ -69,7 +69,7 @@ console.log('4. V2 のバックアップファイル');
   const meta = C.newVaultMeta([await C.makeRecoveryWrap(dk, rk)]);
   meta.wraps.push(await C.makePasskeyWrap(dk, prf, 'cred-2', C.b64.enc(C.randomBytes(32)), 'iPhone の Safari'));
   const key = await C.importDK(dk);
-  const file = JSON.parse(JSON.stringify(await C.makeV5File(meta, key, BOOK, { mode:'vault', role:'overwrite-backup', name:BOOK.name })));
+  const file = JSON.parse(JSON.stringify(await C.makeV5File(meta, key, dk, BOOK, { mode:'vault', role:'overwrite-backup', name:BOOK.name })));
   ok(C.isV5File(file) && !C.isV4File(file), 'V2 の形と分かる（V1 とまちがえない）');
   ok(file.role === 'overwrite-backup' && file.vaultId === meta.vaultId && file.wraps.length === 2, '上書きの印・金庫の ID・包み2つが入る');
   ok(!JSON.stringify(file).includes('秘密のことば'), '中身は平文で入らない');
@@ -80,6 +80,47 @@ console.log('4. V2 のバックアップファイル');
   const bad = { ...file, ct: C.b64.enc(new Uint8Array(C.b64.dec(file.ct)).map((x, i) => i === 5 ? x ^ 1 : x)) };
   ok(await throws(async () => C.decryptJSON(await C.importDK(dkByRk), bad)), '中身を1ビットでも書きかえられたら開かない');
   ok(await C.openWithRecovery(file.wraps.filter(w => w.type !== 'recovery'), rk) === null, '復元キーの包みが無ければ復元キーでは開かない');
+}
+
+console.log('4b. 改ざんを見分ける印（V2.00.010〜・チャッピーさんの指摘）');
+{
+  const dk = C.newDK(), rk = C.genRecoveryKey(), prf = C.randomBytes(32);
+  const meta = C.newVaultMeta([await C.makeRecoveryWrap(dk, rk)]);
+  meta.wraps.push(await C.makePasskeyWrap(dk, prf, 'cred-mac', 'cA==', 'Mac の Chrome'));
+  meta.wraps.push(await C.makePasskeyWrap(dk, prf, 'cred-iph', 'cA==', 'iPhone の Safari'));
+  meta.revoked = ['cred-old'];
+  meta.history = [{ at: 1762000000000, device:'MacBook', browser:'Chrome', kind:'obk' }];
+  const key = await C.importDK(dk);
+  const text = JSON.stringify(await C.makeV5File(meta, key, dk, BOOK, { mode:'vault', role:'overwrite-backup', name:BOOK.name }), null, 2);
+  const file = JSON.parse(text);
+  ok(file.auth && file.auth.v === 1 && typeof file.auth.mac === 'string', '印（auth）が付く');
+  ok(await C.checkV5Auth(dk, file) === 'ok', '書き出したままなら印が合う（JSON にして読み戻しても）');
+  ok(!text.includes('MacBook') && file.hist && file.hist.ct, '履歴は暗号化して入る（端末の名前は平文で見えない）');
+  ok(same(await C.decryptJSON(key, file.hist), meta.history), '履歴は鍵で開ける');
+  // チャッピーさんの試験：暗号文はそのままで、revoked だけを書きかえる
+  const t1 = { ...file, revoked: ['cred-old', 'cred-iph'] };
+  ok(same(await C.decryptJSON(key, t1), BOOK), '（本体は書きかえていないので、本体だけなら開けてしまう＝前の版の穴）');
+  ok(await C.checkV5Auth(dk, t1) === 'bad', 'revoked だけ書きかえても、印が合わない（見破る）');
+  ok(await C.checkV5Auth(dk, { ...file, wraps: file.wraps.filter(w => w.credId !== 'cred-iph') }) === 'bad', 'パスキーを1つ消しても見破る');
+  ok(await C.checkV5Auth(dk, { ...file, wraps: file.wraps.map(w => w.credId === 'cred-iph' ? { ...w, label:'偽物' } : w) }) === 'bad', 'パスキーの名前を変えても見破る');
+  const { hist, ...noHist } = file;
+  ok(await C.checkV5Auth(dk, noHist) === 'bad', '履歴を消しても見破る');
+  ok(await C.checkV5Auth(dk, { ...file, name:'ちがう名前' }) === 'bad', 'データ名を変えても見破る');
+  ok(await C.checkV5Auth(dk, { ...file, auth: null }) === 'bad' && await C.checkV5Auth(dk, { ...file, auth: { v:1, mac:'AAAA' } }) === 'bad', '印をこわしても見破る');
+  const { auth, ...noAuth } = file;
+  ok(await C.checkV5Auth(dk, noAuth) === 'none', '印が無いもの（V2.00.009 まで）は「無い」と分かる（アプリは一覧を合わせない）');
+  const other = C.newDK();
+  ok(await C.checkV5Auth(other, file) === 'bad', '別の鍵では印を作れない・合わない');
+  const reordered = JSON.parse(JSON.stringify(Object.fromEntries(Object.entries(file).reverse())));
+  ok(await C.checkV5Auth(dk, reordered) === 'ok', 'キーの並びが変わっても（中身が同じなら）合う');
+  // ファイル名の印
+  const tag = await C.fileNameTag(dk, text);
+  ok(/^[0-9A-HJKMNP-TV-Z]{10}$/.test(tag), `ファイル名の印は10文字（例 ${tag.slice(0, 3)}…）`);
+  ok(tag === await C.fileNameTag(dk, text) && tag !== await C.fileNameTag(other, text), '同じ鍵・同じ中身なら同じ印・別の鍵なら違う');
+  ok(tag !== await C.fileNameTag(dk, text.replace('cred-old', 'cred-olx')), '中身が1文字でも違えば印が違う');
+  ok(C.nameTagOf(`テスト帳-20261103-1405-obk-${tag}.enc.json`) === tag, 'ファイル名から印を読む');
+  ok(C.nameTagOf(`テスト帳-20261103-1405-obk-${tag} (1).enc.json`) === tag && C.nameTagOf(`a-bk-${tag.toLowerCase()}.enc.json`) === tag, 'ブラウザが足す「 (1)」・小文字でも読める');
+  ok(C.nameTagOf('テスト帳-20261103-上書きバックアップ.enc.json') === null, '前の版の名前には印が無い');
 }
 
 console.log('5. 古い形（V1）とパスワードのファイル');

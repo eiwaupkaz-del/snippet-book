@@ -412,7 +412,7 @@
       上書き用の暗号バックアップを書き出しました。<strong style="color:var(--focus);">「ロックする」を押すと、ロック画面に戻ります。</strong>
       次回このバックアップから起動すると、この時点の内容に戻せます。
     </div>
-    <p class="dlg-note">保存先は、お使いのブラウザのダウンロード先フォルダ（iPhone は「ファイル」アプリ等）です。別の端末に同期するときは、このファイルを相手の端末に渡し、起動画面の「上書き用バックアップから開く」で読み込んでください。</p>
+    <p class="dlg-note">保存先は、選んだ場所です（パソコンの Chrome・Edge は保存先を選ぶ画面が出ます。出ないブラウザはダウンロード先のフォルダ、iPhone は「ファイル」アプリ等）。ファイル名の最後の10文字は改ざんを見分ける印なので、名前は変えないでください。別の端末に同期するときは、このファイルを相手の端末に渡し、起動画面の「上書き用バックアップから開く」で読み込んでください。</p>
     <div class="lock-row" style="justify-content:flex-end;">
       <button class="btn btn-primary" id="exitDone">ロックする</button>
     </div>
@@ -438,6 +438,20 @@
       <button class="btn" id="regenRkBtn">復元キーを作り直す</button>
       <button class="btn btn-quiet" id="rekeyBtn">鍵をすべて作り直す</button>
     </div>
+    <div class="restore-head">バックアップの履歴（V2.00.010〜）</div>
+    <ul class="pk-list" id="bkHistList"></ul>
+    <div class="restore-head">開いた履歴（V2.00.010〜）</div>
+    <ul class="pk-list" id="openHistList"></ul>
+    <div class="lock-row" style="margin:8px 0 6px;">
+      <label for="devNameField" style="font-size:11.5px;">この端末の名前</label>
+      <input class="data-name" id="devNameField" maxlength="30" style="width:auto;flex:1;min-width:120px;" autocomplete="off">
+    </div>
+    <div class="lock-row" style="margin:0 0 6px;">
+      <button class="btn" id="checkBkBtn">バックアップファイルを確かめる</button>
+    </div>
+    <input type="file" id="checkBkFile" accept="application/json,.json,.enc.json" hidden>
+    <p class="dlg-note" id="checkBkOut" style="margin:0 0 6px;"></p>
+    <p class="dlg-note" style="margin:0 0 14px;">バックアップを書き出すたび・開くたびに、端末の名前・ブラウザ・日時を残します（ブラウザからはパソコンの名前を読めないので、名前はここで付けてください。空なら Mac・Windows などと出ます）。履歴はバックアップに暗号化して入り、改ざんを見分ける印で守られます。ファイル名の最後の10文字（-obk- のあと）は、ファイルの中身の SHA-256 を、復元キーかパスキーで開ける鍵で印にしたものです。開くときに合わなければ「このファイルは改ざんの恐れがあります」と出ます。</p>
     <div class="restore-head">自動ロックとクリップボード（この端末だけの設定）</div>
     <div class="lock-row" style="margin-bottom:6px;">
       <label for="autoLockSel" style="font-size:11.5px;">何もしないとロック</label>
@@ -513,7 +527,7 @@
      ファイル本体を変更したら版番号を上げ、公式サイトの
      「バージョン ⇄ ハッシュ」対応表も更新すること。
      ========================================================= */
-  const APP_VERSION = 'V2.00.009';
+  const APP_VERSION = 'V2.00.010';
 
   /* =========================================================
      Storage keys
@@ -667,9 +681,58 @@
   }
   function isV5File(d) { return !!(d && d.version === 5 && d.kdf === 'dk-wrap' && Array.isArray(d.wraps) && d.iv && d.ct); }
   function isV4File(d) { return !!(d && d.enc === 'aes-gcm' && d.iv && d.ct && d.salt && d.kdf !== 'dk-wrap'); }
-  async function makeV5File(meta, key, payload, extra) {
+  // V2.00.010〜 dk（データの鍵）も渡す。履歴は暗号化して入れ、ファイル全体に改ざんを見分ける印（auth）を付ける
+  async function makeV5File(meta, key, dk, payload, extra) {
     const revoked = Array.isArray(meta.revoked) && meta.revoked.length ? { revoked: meta.revoked } : {};   // V2.00.009〜 外したパスキーの印
-    return { version:5, enc:'aes-gcm', kdf:'dk-wrap', ...extra, vaultId:meta.vaultId, wraps:meta.wraps, ...revoked, ...(await encryptJSON(key, payload)) };
+    const hist = Array.isArray(meta.history) && meta.history.length ? { hist: await encryptJSON(key, meta.history) } : {};
+    const file = { version:5, enc:'aes-gcm', kdf:'dk-wrap', ...extra, vaultId:meta.vaultId, wraps:meta.wraps, ...revoked, ...hist, ...(await encryptJSON(key, payload)) };
+    return signV5File(dk, file);
+  }
+
+  /* ---------- V2.00.010〜 バックアップの改ざんを見分ける印 ----------
+     本体（iv・ct）は AES-GCM で守られているが、V2.00.009 までは外側（パスキーの一覧・外した印 revoked）が守られていなかった。
+     データの鍵（DK）から HMAC の鍵を作り、auth 以外のすべてに印を付ける。
+     DK を取り出せる人（復元キーかパスキーを持つ人）だけが、印を作れる・確かめられる */
+  const INFO_AUTH = 'snippet-book/v5/auth';
+  const INFO_NAME = 'snippet-book/v5/filename';
+  async function macKeyFrom(dk, info) {
+    const base = await crypto.subtle.importKey('raw', dk, 'HKDF', false, ['deriveKey']);
+    return crypto.subtle.deriveKey(
+      { name:'HKDF', hash:'SHA-256', salt:new Uint8Array(32), info: enc.encode(info) },
+      base, { name:'HMAC', hash:'SHA-256', length:256 }, false, ['sign','verify']
+    );
+  }
+  // キーの順をそろえた JSON（同じ中身なら、どの端末でも同じ文字列になる）
+  function canonJSON(v) {
+    if (Array.isArray(v)) return '[' + v.map(x => x === undefined ? 'null' : canonJSON(x)).join(',') + ']';
+    if (v && typeof v === 'object') return '{' + Object.keys(v).filter(k => v[k] !== undefined).sort()
+      .map(k => JSON.stringify(k) + ':' + canonJSON(v[k])).join(',') + '}';
+    return JSON.stringify(v);
+  }
+  function authBody(file) { const { auth, ...rest } = file; return enc.encode(canonJSON(rest)); }
+  async function signV5File(dk, file) {
+    const mac = await crypto.subtle.sign('HMAC', await macKeyFrom(dk, INFO_AUTH), authBody(file));
+    return { ...file, auth: { v:1, mac: b64.enc(mac) } };
+  }
+  // 'ok' = 印が合う / 'none' = 印が無い（V2.00.009 までのファイル）/ 'bad' = 書きかえられている
+  async function checkV5Auth(dk, file) {
+    if (!('auth' in file)) return 'none';
+    const a = file.auth;
+    if (!a || a.v !== 1 || typeof a.mac !== 'string') return 'bad';
+    try { return (await crypto.subtle.verify('HMAC', await macKeyFrom(dk, INFO_AUTH), b64.dec(a.mac), authBody(file))) ? 'ok' : 'bad'; }
+    catch { return 'bad'; }
+  }
+  // ファイル名の印：書き出したファイルの SHA-256 を、DK から作った鍵で HMAC にした 10 文字（復元キーと同じ文字を使う）
+  const NAME_TAG_LEN = 10;
+  async function fileNameTag(dk, text) {
+    const sha = await crypto.subtle.digest('SHA-256', enc.encode(text));
+    const m = new Uint8Array(await crypto.subtle.sign('HMAC', await macKeyFrom(dk, INFO_NAME), sha));
+    return Array.from(m.slice(0, NAME_TAG_LEN), b => RK_ABC[b & 31]).join('');
+  }
+  // ファイル名から印を読む（…-obk-XXXXXXXXXX…）。無ければ null。ブラウザが足す「 (1)」などは気にしない
+  function nameTagOf(fname) {
+    const all = [...String(fname || '').matchAll(/-o?bk-([0-9A-Za-z]{10})(?![0-9A-Za-z])/g)];
+    return all.length ? all[all.length - 1][1].toUpperCase() : null;
   }
   async function openV4File(data, password) {
     const key = await deriveKey(password, new Uint8Array(b64.dec(data.salt)), data.iter || PBKDF2_ITER_OLD);
@@ -775,13 +838,7 @@
     } catch {}
     return true;
   }
-  function deviceLabel() {
-    const os = /iPhone/.test(ua) ? 'iPhone' : /iPad/.test(ua) || isIOS ? 'iPad'
-      : /Android/.test(ua) ? 'Android' : /Windows/.test(ua) ? 'Windows' : /Mac/.test(ua) ? 'Mac' : 'この端末';
-    const br = /Edg\//.test(ua) ? 'Edge' : /Firefox\//.test(ua) ? 'Firefox'
-      : /(Chrome|CriOS)\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : 'ブラウザ';
-    return `${os} の ${br}`;
-  }
+  function deviceLabel() { return `${deviceOS()} の ${deviceBrowser()}`; }
   function passkeyWraps(meta) { return (meta && meta.wraps || []).filter(w => w.type === 'passkey'); }
 
   // 登録して、すぐ PRF の値を取り出す。返り値 { credId, prfSalt, prfOut }
@@ -889,6 +946,79 @@
     const removed = (local.wraps || []).length - keep.length;
     return { wraps: keep.concat(add), revoked, added: add.length, removed };
   }
+  /* V2.00.010〜 履歴（いつ・どの端末・どのブラウザで）。kind：obk 上書き用バックアップ / bk バックアップ / open 開いた / view 閲覧専用で開いた
+     金庫には平文で、バックアップには暗号化して入れる（印で守られる）。同じ金庫の本物のファイルを読んだら合わせる */
+  const HIST_KINDS = ['obk','bk','open','view'];
+  const HIST_MAX = { backup: 100, open: 200 };
+  const DEVNAME_KEY = 'snippet-book:device-name';   // この端末の名前（人が付ける。秘密ではない）
+  function deviceName() { try { return (localStorage.getItem(DEVNAME_KEY) || '').trim().slice(0, 30); } catch { return ''; } }
+  function deviceOS() {
+    return /iPhone/.test(ua) ? 'iPhone' : /iPad/.test(ua) || isIOS ? 'iPad'
+      : /Android/.test(ua) ? 'Android' : /Windows/.test(ua) ? 'Windows' : /Mac/.test(ua) ? 'Mac' : 'この端末';
+  }
+  function deviceBrowser() {
+    return /Edg\//.test(ua) ? 'Edge' : /Firefox\//.test(ua) ? 'Firefox'
+      : /(Chrome|CriOS)\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : 'ブラウザ';
+  }
+  function histEntry(kind, how) { return { at: Date.now(), device: deviceName() || deviceOS(), browser: deviceBrowser(), kind, ...(how ? { how } : {}) }; }
+  const isBackupKind = k => k === 'obk' || k === 'bk';
+  function mergeHistory(a, b) {
+    const ok = h => h && typeof h === 'object' && Number.isFinite(h.at) && typeof h.device === 'string' && typeof h.browser === 'string';
+    const by = new Map();
+    for (const h of [...(Array.isArray(a) ? a : []), ...(Array.isArray(b) ? b : [])].filter(ok)) {
+      if (!HIST_KINDS.includes(h.kind)) continue;
+      const x = { at:h.at, device:h.device.slice(0, 30), browser:h.browser.slice(0, 20), kind:h.kind,
+        ...(h.how === 'pk' || h.how === 'rk' ? { how:h.how } : {}),
+        ...(typeof h.tag === 'string' && /^[0-9A-Z]{10}$/.test(h.tag) ? { tag:h.tag } : {}) };
+      const k = `${x.at}|${x.device}|${x.browser}|${x.kind}`;
+      const was = by.get(k);
+      if (!was || (!was.tag && x.tag)) by.set(k, x);   // 同じものは1つに（ファイル名の印があるほうを残す）
+    }
+    const all = [...by.values()].sort((p, q) => p.at - q.at);
+    const bks = all.filter(h => isBackupKind(h.kind)).slice(-HIST_MAX.backup);
+    const ops = all.filter(h => !isBackupKind(h.kind)).slice(-HIST_MAX.open);
+    return bks.concat(ops).sort((p, q) => p.at - q.at);
+  }
+  // V2.00.010〜 開いた・閲覧したことを、この端末の金庫の履歴に残す（書けなくても止めない）
+  async function noteHistory(kind, how) {
+    if (!vault || vault.version !== 5) return;
+    const ep = lockEpoch;
+    const next = { ...vault, history: mergeHistory(vault.history, [histEntry(kind, how)]) };
+    try { await writeVault(next); if (!lockedSince(ep) || kind === 'view') vault = next; } catch {}
+  }
+  /* V2.00.010〜 V2 のバックアップを確かめる（開けた DK で）。
+     auth：'ok' 印が合う / 'none' 印が無い（V2.00.009 まで）/ 'bad' 書きかえられている
+     name：true ファイル名の印が合う / false 合わない / null 名前に印が無い
+     ファイル名に印があるのに auth が無いのも、印を消した書きかえとみなす */
+  const TAMPER_MSG = 'このファイルは改ざんの恐れがあります（中身か鍵の情報が書きかえられています）。取りこみませんでした';
+  async function inspectV5(dk, file, fname, text) {
+    let auth = await checkV5Auth(dk, file);
+    const tag = nameTagOf(fname);
+    let name = null;
+    if (tag) name = typeof text === 'string' && (await fileNameTag(dk, text)) === tag;
+    if (auth === 'none' && tag) auth = 'bad';
+    let history = [];
+    if (auth === 'ok' && file.hist) {
+      try { history = mergeHistory(await decryptJSON(await importDK(dk), file.hist), []); } catch { auth = 'bad'; }
+    }
+    return { auth, name, history };
+  }
+  // ファイル名の印が合わないときは、知らせて続けるかを聞く（中身の印は合っているので、名前を変えたか、別のファイルの名前）
+  function nameTagOkOrAsk(r) {
+    if (r.name !== false) return true;
+    return confirm('このファイルは改ざんの恐れがあります。\n\nファイル名の印（-obk- のあとの10文字）が、ファイルの中身と合いません。ファイルの中身か名前が書きかえられています。\n\n心当たりが無ければ「キャンセル」を押して、ほかのバックアップを使ってください。それでも開きますか？');
+  }
+  function histText(h) {
+    const d = new Date(h.at), p = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}/${p(d.getMonth()+1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}　${h.device} の ${h.browser}`;
+  }
+  const HIST_WORD = { obk:'上書き用バックアップ', bk:'バックアップ', open:'開いた', view:'閲覧専用で開いた' };
+  function histWhat(h) { return HIST_WORD[h.kind] + (h.how === 'pk' ? '（パスキー）' : h.how === 'rk' ? '（復元キー）' : ''); }
+  function fileOrigin(r) {
+    if (!r || r.auth !== 'ok') return '';
+    const last = r.history.filter(h => isBackupKind(h.kind)).pop();
+    return last ? `（${histText(last)} で書き出したもの・改ざんの印が合いました）` : '（改ざんの印が合いました）';
+  }
   // 計算（暗号化）をすませてから、1回で書き、書けたら vault・鍵・本体を切りかえる。ep を渡すと、ロックされていたら書かずに false
   async function commitVault(meta, dk, content, ep) {
     const key = await importDK(dk);
@@ -896,6 +1026,7 @@
     if (ep !== undefined && lockedSince(ep)) return false;
     const next = { version:5, vaultId: meta.vaultId, wraps: meta.wraps, data: blob };
     if (Array.isArray(meta.revoked) && meta.revoked.length) next.revoked = meta.revoked;   // V2.00.009〜 外したパスキーの印も引き継ぐ
+    if (Array.isArray(meta.history) && meta.history.length) next.history = meta.history;   // V2.00.010〜 バックアップの履歴も引き継ぐ
     await writeVault(next);   // 失敗したら throw（何も変わっていない）
     // ここから先は await をはさまない
     if (dkRaw && dkRaw !== dk) dkRaw.fill(0);
@@ -1099,7 +1230,7 @@
     }
   }
   // 新しい DK と復元キーで金庫を作り、中身を保存して開く。復元キーを控えなければ何もしない
-  async function startNewVault(content, kind) {
+  async function startNewVault(content, kind, keep) {
     const ep = lockEpoch;
     const dk = newDK();
     const rk = genRecoveryKey();
@@ -1108,7 +1239,7 @@
     // V2.00.008〜 鍵の情報と本体を1回で書き、書けてから切りかえる（片方だけ書けてずれることが無い）
     const wrap = await makeRecoveryWrap(dk, rk);
     let ok;
-    try { ok = await commitVault(newVaultMeta([wrap]), dk, content, ep); }
+    try { ok = await commitVault({ ...newVaultMeta([wrap]), ...(keep || {}) }, dk, content, ep); }   // V2.00.010〜 keep：引き継ぐ履歴
     catch (e) { dk.fill(0); throw e; }
     if (!ok) { dk.fill(0); return false; }   // 途中でロックされた → 何も書かず、開き直さない
     enterApp();
@@ -1123,15 +1254,19 @@
     const errEl = $('setupErr');
     errEl.textContent = 'ファイルを確認しています…';
     try {
-      const data = await readJSONFile(file);
+      const { data, text } = await readJSONFileT(file);
       if (isV5File(data)) {
         const dk = await askOpen(data.wraps, 'バックアップから始める', file.name);
         if (!dk) { errEl.textContent = ''; return; }
         const content = await decryptJSON(await importDK(dk), data);
-        await commitVault({ vaultId:data.vaultId, wraps:data.wraps }, dk, normalize(toBook(content, file.name)));   // V2.00.008〜 1回で書く
+        const r = await inspectV5(dk, data, file.name, text);   // V2.00.010〜 改ざんを確かめる
+        if (r.auth === 'bad') { dk.fill(0); errEl.textContent = TAMPER_MSG; return; }
+        if (!nameTagOkOrAsk(r)) { dk.fill(0); errEl.textContent = '取りこみをやめました'; return; }
+        const meta = { vaultId:data.vaultId, wraps:data.wraps, revoked: Array.isArray(data.revoked) ? data.revoked.filter(x => typeof x === 'string') : undefined, history: r.history };
+        await commitVault(meta, dk, normalize(toBook(content, file.name)));   // V2.00.008〜 1回で書く
         errEl.textContent = '';
         enterApp();
-        setStatus('バックアップから始めました');
+        setStatus('バックアップから始めました' + fileOrigin(r));
         await offerPasskey('この端末でパスキーを登録しますか？\n\n（同期したパスキーでいま開けた場合は、登録しなくても次からパスキーで開けます）');
       } else if (isV4File(data)) {
         const content = await decryptImport(data);
@@ -1154,7 +1289,7 @@
   $('passkeyBtn').addEventListener('click', async () => {
     const errEl = $('unlockErr');
     errEl.textContent = 'パスキーを確かめています…';
-    try { await finishUnlock(await openWithPasskey(passkeyWraps(vault))); }
+    try { await finishUnlock(await openWithPasskey(passkeyWraps(vault)), 'pk'); }
     catch (e) { errEl.textContent = passkeyErrText(e); }
   });
   $('rkUnlockBtn').addEventListener('click', unlockWithRk);
@@ -1165,17 +1300,17 @@
     const dk = await openWithRecovery(vault.wraps, $('rkField').value);
     if (!dk) { errEl.textContent = '復元キーが違います（25文字・区切りの - はあってもなくてもかまいません）'; return; }
     $('rkField').value = '';
-    await finishUnlock(dk);
+    await finishUnlock(dk, 'rk');
   }
 
-  async function finishUnlock(dk) {
+  async function finishUnlock(dk, how) {
     const errEl = $('unlockErr');
     if (pendingRestore) {
       // 上書きバックアップから起動：前回データを削除して置き換える
       const ok = confirm('前回のデータは削除され、選んだ上書きバックアップの内容で置き換わります。\n\nよろしいですか？');
       if (!ok) { errEl.textContent = '取り込みを中止しました。「上書き用バックアップ」の選択を外すか、そのまま開くと通常起動します。'; dk.fill(0); return; }
       const wrapper = pendingRestore.file;
-      let restored, useDk = dk, useVault = vault;
+      let restored, useDk = dk, useVault = vault, insp = null, note = '';
       try {
         if (isV5File(wrapper)) {
           if (wrapper.vaultId !== vault.vaultId) {
@@ -1185,16 +1320,30 @@
             useVault = { version:5, vaultId:wrapper.vaultId, wraps:wrapper.wraps, revoked:wrapper.revoked };
           }
           restored = await decryptJSON(await importDK(useDk), wrapper);
-          if (wrapper.vaultId === vault.vaultId) {   // V2.00.009〜 同じ金庫：開けたので本物。パスキーの一覧を合わせる
+          insp = await inspectV5(useDk, wrapper, pendingRestore.fname, pendingRestore.text);   // V2.00.010〜 改ざんを確かめる
+          if (insp.auth === 'bad') throw new Error(TAMPER_MSG);
+          if (wrapper.vaultId !== vault.vaultId) {
+            useVault = { ...useVault, history: insp.history };
+          } else if (insp.auth === 'ok') {   // 同じ金庫で印が合う：パスキーの一覧と履歴を合わせる
             const m = mergePasskeys(vault, wrapper);
-            useVault = { ...vault, wraps: m.wraps, revoked: m.revoked };
+            useVault = { ...vault, wraps: m.wraps, revoked: m.revoked, history: mergeHistory(vault.history, insp.history) };
+          } else {
+            note = '（V2.00.009 までに書き出したファイルなので、パスキーの一覧は合わせていません）';
           }
         } else {
           restored = await decryptImport(wrapper);     // 古い形（V1）のバックアップ：パスワードを聞く
           if (restored === null) { errEl.textContent = '取り込みを中止しました。'; dk.fill(0); return; }
         }
-      } catch {
-        errEl.textContent = 'このバックアップを開けませんでした（鍵が違う可能性があります）。';
+      } catch (e) {
+        if (useDk !== dk) useDk.fill(0);
+        dk.fill(0);
+        errEl.textContent = e && e.message === TAMPER_MSG ? TAMPER_MSG : 'このバックアップを開けませんでした（鍵が違う可能性があります）。';
+        return;
+      }
+      if (insp && !nameTagOkOrAsk(insp)) {
+        if (useDk !== dk) useDk.fill(0);
+        dk.fill(0);
+        errEl.textContent = '取りこみをやめました（この端末のデータはそのままです）。';
         return;
       }
       if (useDk !== dk) dk.fill(0);
@@ -1203,7 +1352,8 @@
       catch (e) { if (useDk !== dk) useDk.fill(0); errEl.textContent = e.message; return; }
       clearRestore();
       enterApp();
-      setStatus('上書きバックアップで起動しました');
+      noteHistory('open', how);   // V2.00.010〜 開いた履歴
+      setStatus('上書きバックアップで起動しました' + (insp ? fileOrigin(insp) : '') + note);
       return;
     }
 
@@ -1223,6 +1373,7 @@
       if (!vault.data) { try { await persist(); } catch {} }   // 前の形（別々の置き場）なら、新しい形へ移す
     }
     enterApp();
+    noteHistory('open', how);   // V2.00.010〜 開いた履歴
   }
 
   /* 上書きバックアップ・ファイル選択 */
@@ -1239,7 +1390,7 @@
     if (!file) return;
     errEl.textContent = 'ファイルを確認しています…';
     try {
-      const data = await readJSONFile(file);
+      const { data, text } = await readJSONFileT(file);
       // 上書き用バックアップの印を確認（暗号ファイルはラッパー側に付く）
       if (data.role !== OVERWRITE_MARK) {
         errEl.textContent = 'これは「上書き用バックアップ」ではありません。ヘッダの「バックアップしてロック」で作ったファイルを選んでください。';
@@ -1247,7 +1398,7 @@
         return;
       }
       // 開けるのは「パスキーで開く」か「復元キーで開く」を押したとき（finishUnlock）
-      pendingRestore = { file: data, fname: file.name };
+      pendingRestore = { file: data, fname: file.name, text };
       nameEl.textContent = `${file.name}（データ名: ${data.name || '不明'}）`;
       nameEl.classList.add('set');
       errEl.textContent = '取り込み準備OK。パスキーか復元キーで開いてください。';
@@ -1340,9 +1491,72 @@
       li.appendChild(del);
       ul.appendChild(li);
     });
+    renderHistory();
     $('addPasskeyBtn').disabled = !passkeyBase;
     $('keysErr').textContent = passkeyBase ? '' : 'この開き方（アドレス）ではパスキーを登録できません。https のアドレスで開いてください。';
   }
+  // V2.00.010〜 履歴（新しい順・それぞれ 30 件まで出す）
+  function renderHistory() {
+    const h = (vault && vault.history) || [];
+    const fill = (id, rows, empty) => {
+      const ul = $(id); ul.innerHTML = '';
+      if (!rows.length) { ul.innerHTML = `<li class="pk-empty">${empty}</li>`; return; }
+      rows.slice().reverse().slice(0, 30).forEach(x => {
+        const li = document.createElement('li');
+        li.innerHTML = `<span class="pk-name">${esc(histText(x))}</span><span class="pk-date">${esc(histWhat(x))}${x.tag ? '　印 ' + esc(x.tag) : ''}</span>`;
+        ul.appendChild(li);
+      });
+      if (rows.length > 30) { const li = document.createElement('li'); li.className = 'pk-empty'; li.textContent = `ほか ${rows.length - 30} 件（古いもの）`; ul.appendChild(li); }
+    };
+    fill('bkHistList', h.filter(x => isBackupKind(x.kind)), 'まだありません（V2.00.010 から残します）');
+    fill('openHistList', h.filter(x => !isBackupKind(x.kind)), 'まだありません（V2.00.010 から残します）');
+    $('devNameField').value = deviceName();
+    $('devNameField').placeholder = deviceOS() + '（例：事務所の MacBook）';
+  }
+  $('devNameField').addEventListener('change', () => {
+    const v = $('devNameField').value.replace(/[\u0000-\u001f]/g, '').trim().slice(0, 30);
+    try { if (v) localStorage.setItem(DEVNAME_KEY, v); else localStorage.removeItem(DEVNAME_KEY); } catch {}
+    showToast(v ? `この端末の名前を「${v}」にしました` : 'この端末の名前を消しました');
+  });
+  // V2.00.010〜 バックアップファイルを確かめる（取りこまない。印と履歴を見るだけ）
+  $('checkBkBtn').addEventListener('click', () => $('checkBkFile').click());
+  $('checkBkFile').addEventListener('change', async e => {
+    const file = e.target.files[0]; e.target.value = '';
+    if (!file) return;
+    const out = $('checkBkOut');
+    out.textContent = '確かめています…';
+    const ep = lockEpoch;
+    try {
+      const { data, text } = await readJSONFileT(file);
+      if (!isV5File(data)) throw new Error('パスキー・復元キーで開く形のバックアップではありません');
+      let dk = null, own = false;
+      if (vault && dkRaw && data.vaultId === vault.vaultId) dk = dkRaw;
+      else {
+        dk = await askOpen(data.wraps, 'このファイルを確かめる', '別の鍵のバックアップです。そのときのパスキーか復元キーで開いてください。');
+        if (!dk) { if (!lockedSince(ep)) out.textContent = ''; return; }
+        own = true;
+      }
+      let r;
+      try {
+        await decryptJSON(await importDK(dk), data);
+        r = await inspectV5(dk, data, file.name, text);
+      } catch { r = { auth:'bad', name:null, history:[] }; }
+      finally { if (own) dk.fill(0); }
+      if (lockedSince(ep)) return;
+      const lines = [
+        r.auth === 'ok' ? '○ 中身と鍵の情報：改ざんの印が合いました'
+          : r.auth === 'none' ? '△ 中身は本物ですが、V2.00.009 までのファイルなので、鍵の情報（パスキーの一覧など）は確かめられません'
+          : '× このファイルは改ざんの恐れがあります（中身か鍵の情報が書きかえられています）',
+        r.name === true ? '○ ファイル名の印：合いました' : r.name === false ? '× このファイルは改ざんの恐れがあります（ファイル名の印が中身と合いません）' : '－ ファイル名の印：ありません（V2.00.009 までのファイルか、名前が変えられています）',
+      ];
+      const last = r.history.filter(h => isBackupKind(h.kind)).pop();
+      if (last) lines.push(`作ったとき：${histText(last)}（${histWhat(last)}）・履歴 ${r.history.length} 件`);
+      out.textContent = lines.join('\n');
+      out.style.whiteSpace = 'pre-line';
+    } catch (err) {
+      if (!lockedSince(ep)) out.textContent = '確かめられませんでした：' + err.message;
+    }
+  });
   $('keysBtn').addEventListener('click', () => { renderKeys(); $('keysOverlay').classList.remove('hidden'); });
   $('keysClose').addEventListener('click', () => $('keysOverlay').classList.add('hidden'));
   $('addPasskeyBtn').addEventListener('click', async () => {
@@ -1359,15 +1573,21 @@
     $('keysErr').textContent = '';
     const ep = lockEpoch;
     try {
-      const data = await readJSONFile(file);
-      if (lockedSince(ep) || !cryptoKey) return;
+      const { data, text } = await readJSONFileT(file);
+      if (lockedSince(ep) || !cryptoKey || !dkRaw) return;
       if (!isV5File(data)) throw new Error('この形のファイルからは合わせられません（「バックアップしてロック」などで書き出した、いまの形のファイルを選んでください）');
       if (data.vaultId !== vault.vaultId) throw new Error('別の鍵のデータのバックアップです（鍵をすべて作り直す前のものなど）。合わせられません');
       try { await decryptJSON(cryptoKey, data); } catch { throw new Error('このファイルは、この鍵で開けませんでした。合わせられません'); }   // 本物か確かめる
+      // V2.00.010〜 外側（パスキーの一覧・外した印）も、改ざんを見分ける印で確かめてから合わせる
+      const r = await inspectV5(dkRaw, data, file.name, text);
       if (lockedSince(ep)) return;
+      if (r.auth === 'bad') throw new Error(TAMPER_MSG);
+      if (r.auth === 'none') throw new Error('V2.00.009 までに書き出したファイルには改ざんを見分ける印が無いので、一覧は合わせられません。相手の端末で V2.00.010 にしてから「バックアップしてロック」で書き出し直してください');
+      if (!nameTagOkOrAsk(r)) return;
       const m = mergePasskeys(vault, data);
-      if (!m.added && !m.removed && (m.revoked.length === (vault.revoked || []).length)) { showToast('新しく合わせるパスキーはありません'); return; }
-      const next = { ...vault, wraps: m.wraps, revoked: m.revoked };
+      const history = mergeHistory(vault.history, r.history);
+      if (!m.added && !m.removed && (m.revoked.length === (vault.revoked || []).length) && history.length === (vault.history || []).length) { showToast('新しく合わせるパスキーはありません'); return; }
+      const next = { ...vault, wraps: m.wraps, revoked: m.revoked, history };
       await writeVault(next);   // 書けてから切りかえる
       if (lockedSince(ep)) return;
       vault = next;
@@ -1405,7 +1625,7 @@
     $('keysOverlay').classList.add('hidden');
     try {
       const ep = lockEpoch;
-      if (!(await startNewVault(book, 'rekey'))) { if (!lockedSince(ep)) vault = oldVault; return; }
+      if (!(await startNewVault(book, 'rekey', { history: oldVault.history }))) { if (!lockedSince(ep)) vault = oldVault; return; }
       if (oldDk) oldDk.fill(0);
       markNeedsBackup();
       setStatus('鍵をすべて作り直しました。新しい形でバックアップを取り直し、パスワード管理に残る古い「スニペット帳」のパスキーは消してください');
@@ -1507,6 +1727,7 @@
     $('rkCode').textContent = '—'; $('rkConfirm').value = ''; $('rkErr').textContent = '';
     $('openRk').value = ''; $('openErr').textContent = ''; $('openSub').textContent = '';
     $('pkList').innerHTML = ''; $('keysSub').textContent = '—'; $('keysErr').textContent = '';
+    $('bkHistList').innerHTML = ''; $('openHistList').innerHTML = ''; $('checkBkOut').textContent = '';   // V2.00.010〜 履歴と確かめた結果
     $('printArea').innerHTML = ''; document.body.classList.remove('printing');
     list.innerHTML = ''; setsEl.innerHTML = '';
     search.value = '';
@@ -1564,9 +1785,13 @@
     const errEl = document.getElementById('viewErr');
     errEl.textContent = '読み込んでいます…';
     try {
-      let data = await readJSONFile(file);
-      if (isV5File(data) || isV4File(data)) {
-        data = await decryptImport(data);       // パスキー・復元キー・パスワードのどれかで開く
+      let { data, text } = await readJSONFileT(file);
+      if (isV5File(data)) {
+        const got = await decryptImportV5(data, file.name, text);   // V2.00.010〜 改ざんも確かめる
+        if (got === null) { errEl.textContent = ''; return; }  // キャンセル
+        data = got.content;
+      } else if (isV4File(data)) {
+        data = await decryptImport(data);       // パスワードで開く
         if (data === null) { errEl.textContent = ''; return; }  // キャンセル
       }
       const b = toBook(data, file.name);
@@ -1574,6 +1799,7 @@
       viewOnly = true;
       errEl.textContent = '';
       enterApp();
+      noteHistory('view');   // V2.00.010〜 閲覧の履歴（この端末に金庫があるとき）
     } catch (err) {
       errEl.textContent = '読み込めませんでした：' + err.message;
     }
@@ -1617,7 +1843,8 @@
     const d = new Date();
     const p = n => String(n).padStart(2,'0');
     const date = `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}`;
-    return { nm, date, stamp: `${nm}-${date}` };
+    const time = `${p(d.getHours())}${p(d.getMinutes())}`;   // V2.00.010〜 バックアップのファイル名に時刻も入れる
+    return { nm, date, time, stamp: `${nm}-${date}` };
   }
 
   // V2.00.008〜 本体は鍵の情報と同じ項目に、1回で書く（書けなければ throw。呼ぶ側が知らせる）
@@ -1985,6 +2212,47 @@
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
   function downloadJSON(filename, obj) { downloadBlob(filename, JSON.stringify(obj,null,2)); }
+  /* V2.00.010〜 保存先を選んでから書く（パソコンの Chrome・Edge）。選ぶ画面の無いブラウザ（Safari・Firefox・iPhone など）は、これまでどおりダウンロード。
+     返り値 { how:'saved'|'downloaded'|'cancelled', name }（name は実際に保存した名前） */
+  async function saveFile(filename, text) {
+    if (typeof window.showSaveFilePicker === 'function') {
+      let h = null;
+      try {
+        h = await window.showSaveFilePicker({ suggestedName: filename,
+          types: [{ description: 'スニペット帳のファイル', accept: { 'application/json': ['.json'] } }] });
+      } catch (e) {
+        if (e && e.name === 'AbortError') return { how:'cancelled', name:filename };
+        h = null;   // 選ぶ画面を出せなかった（押してから時間がたったなど）→ ダウンロードにする
+      }
+      if (h) {
+        const w = await h.createWritable();
+        await w.write(text); await w.close();
+        return { how:'saved', name: h.name || filename };
+      }
+    }
+    downloadBlob(filename, text);
+    return { how:'downloaded', name:filename };
+  }
+  // V2.00.010〜 V2 のバックアップを作って保存する：履歴に1行足し、ファイル名に印を付ける。保存したら金庫の履歴にも残す
+  async function saveV5Backup(kind, extra) {
+    if (!cryptoKey || !vault || !dkRaw) { showToast('先にロックを解除してください', true); return null; }
+    const ep = lockEpoch;
+    const dk = dkRaw;
+    const entry = histEntry(kind);
+    const out = await makeV5File({ ...vault, history: mergeHistory(vault.history, [entry]) }, cryptoKey, dk, fullBook(true), extra);
+    const text = JSON.stringify(out, null, 2);
+    const tag = await fileNameTag(dk, text);
+    if (lockedSince(ep)) return null;   // 途中でロックされた → 書き出さない
+    const { nm, date, time } = safeFileBase();
+    const got = await saveFile(`${nm}-${date}-${time}-${kind}-${tag}.enc.json`, text);
+    if (got.how === 'cancelled') { showToast('保存をやめました'); return null; }
+    if (!lockedSince(ep)) {
+      const next = { ...vault, history: mergeHistory(vault.history, [{ ...entry, tag }]) };
+      try { await writeVault(next); if (!lockedSince(ep)) vault = next; }
+      catch { if (!lockedSince(ep)) setStatus('バックアップは書き出しましたが、履歴をこの端末に残せませんでした', true); }
+    }
+    return got;
+  }
 
   function fullBook(inc) {
     return { version:4, kind:'book', name: book.name || 'snippet-book',
@@ -2027,13 +2295,10 @@
       const ep = lockEpoch;
       const out = await makePwFile(p1, fullBook(true), { mode:'own', name:book.name });
       if (lockedSince(ep)) return;
-      downloadJSON(fname, out);
+      if ((await saveFile(fname, JSON.stringify(out, null, 2))).how === 'cancelled') { showToast('保存をやめました'); return; }
     } else {
-      if (!cryptoKey || !vault) { showToast('先にロックを解除してください', true); return; }
-      const ep = lockEpoch;
-      const out = await makeV5File(vault, cryptoKey, fullBook(true), { mode:'vault', name:book.name });
-      if (lockedSince(ep)) return;
-      downloadJSON(fname, out);
+      const got = await saveV5Backup('bk', { mode:'vault', name:book.name });   // V2.00.010〜 履歴・印つき
+      if (!got) return;
     }
     setStatus('暗号化バックアップを書き出しました');
     showToast('暗号化して書き出しました');
@@ -2041,16 +2306,14 @@
 
   /* ---------- BACKUP (overwrite backup, marked) ---------- */
   async function writeOverwriteBackup() {
-    if (!cryptoKey || !vault) { showToast('先にロックを解除してください', true); return null; }
-    const fname = `${safeFileBase().stamp}-上書きバックアップ.enc.json`;
     const ep = lockEpoch;
-    const out = await makeV5File(vault, cryptoKey, fullBook(true), {
+    const got = await saveV5Backup('obk', {   // V2.00.010〜 ファイル名：名前-日付-時刻-obk-印.enc.json
       mode:'vault',
       role: OVERWRITE_MARK,          // ← 上書き用の識別印
       name: book.name,
     });
-    if (lockedSince(ep)) return null;   // 途中でロックされた → 書き出さず、完了の画面も出さない
-    downloadJSON(fname, out);
+    if (!got || lockedSince(ep)) return null;   // やめた・途中でロックされた → 完了の画面も出さない
+    const fname = got.name;
     // バックアップ完了 → 変更フラグを下ろし、時刻を記録
     dirtySinceBackup = false;
     setLastBackup(Date.now());
@@ -2096,10 +2359,11 @@
     const ep = lockEpoch;
     const out = await makePwFile(filePw, payload, { mode:'own', set:set.name });
     if (lockedSince(ep)) return;   // 暗号化の途中でロックされた → 書き出さず、パスワードも見せない
-    downloadJSON(fname, out);
+    const got = await saveFile(fname, JSON.stringify(out, null, 2));   // V2.00.010〜 保存先を選ぶ
+    if (got.how === 'cancelled' || lockedSince(ep)) { if (got.how === 'cancelled') showToast('保存をやめました'); return; }
 
     // reveal password once
-    document.getElementById('sendFileName').textContent = `ファイル: ${fname}  ／  セット: ${set.name}`;
+    document.getElementById('sendFileName').textContent = `ファイル: ${got.name}  ／  セット: ${set.name}`;
     document.getElementById('sendPw').textContent = filePw;
     document.getElementById('sendOverlay').classList.remove('hidden');
     setStatus(`「${set.name}」を暗号化して書き出しました`);
@@ -2124,18 +2388,25 @@
     if (!file) return;
     const ep = lockEpoch;
     try {
-      let data = await readJSONFile(file);
+      let { data, text } = await readJSONFileT(file);
       if (lockedSince(ep)) return;
 
       // encrypted file?
       const rawFile = data;
-      if (isV5File(data) || isV4File(data)) {
+      let insp = null;
+      if (isV5File(data)) {
+        const got = await decryptImportV5(data, file.name, text);   // V2.00.010〜 改ざんも確かめる
+        if (got === null) return; // cancelled
+        data = got.content; insp = got.insp;
+      } else if (isV4File(data)) {
         data = await decryptImport(data);
         if (data === null) return; // cancelled
       }
       if (lockedSince(ep)) return;   // 復号の途中でロックされた → 空にした画面とデータに足さない
-      // V2.00.009〜 同じ金庫の V2 のファイル（開けた＝本物）なら、パスキーの一覧も合わせる
-      const pkMerge = isV5File(rawFile) && vault && rawFile.vaultId === vault.vaultId ? mergePasskeys(vault, rawFile) : null;
+      // V2.00.009〜 同じ金庫の V2 のファイルで、V2.00.010〜 改ざんの印が合うときだけ、パスキーの一覧と履歴も合わせる
+      const same = insp && insp.auth === 'ok' && vault && rawFile.vaultId === vault.vaultId;
+      const pkMerge = same ? mergePasskeys(vault, rawFile) : null;
+      const histMerged = same ? mergeHistory(vault.history, insp.history) : null;
 
       // V2.00.004〜 先に全部を整えて確かめ、だめなら何も足さない
       let incoming;
@@ -2144,8 +2415,8 @@
       else if (Array.isArray(data)) incoming = [normalizeSet({ name:file.name.replace(/\.(enc\.)?json$/i,''), items:data })];
       else throw new Error('形式が認識できません');
       checkLimits(book.sets.concat(incoming));
-      if (pkMerge && (pkMerge.added || pkMerge.removed)) {
-        const next = { ...vault, wraps: pkMerge.wraps, revoked: pkMerge.revoked };
+      if (pkMerge && (pkMerge.added || pkMerge.removed || histMerged.length !== (vault.history || []).length)) {
+        const next = { ...vault, wraps: pkMerge.wraps, revoked: pkMerge.revoked, history: histMerged };
         try { await writeVault(next); if (!lockedSince(ep)) vault = next; } catch {}
         if (lockedSince(ep)) return;
       }
@@ -2161,16 +2432,29 @@
   });
 
   // 暗号ファイルを開く。V2 の形はパスキーか復元キー、V1 の形とファイル専用パスワードはパスワードを聞く
-  async function decryptImport(data) {
-    if (isV5File(data)) {
-      // 今開いている金庫と同じ鍵なら、そのまま開く
-      if (cryptoKey && vault && data.vaultId === vault.vaultId) {
-        try { return await decryptJSON(cryptoKey, data); } catch {}
-      }
-      const dk = await askOpen(data.wraps, 'このファイルを開く', `データ名：${data.name || '不明'}`);
-      if (!dk) return null;
-      try { return await decryptJSON(await importDK(dk), data); } finally { dk.fill(0); }
+  /* V2.00.010〜 V2 の暗号ファイルを開き、改ざんも確かめる。返り値 { content, insp }・やめたら null。
+     書きかえられていたら throw（取りこまない） */
+  async function decryptImportV5(data, fname, text) {
+    let dk = null, own = false;
+    // 今開いている金庫と同じ鍵なら、そのまま開く
+    if (cryptoKey && dkRaw && vault && data.vaultId === vault.vaultId) {
+      try { await decryptJSON(cryptoKey, data); dk = dkRaw; } catch {}
     }
+    if (!dk) {
+      dk = await askOpen(data.wraps, 'このファイルを開く', `データ名：${data.name || '不明'}`);
+      if (!dk) return null;
+      own = true;
+    }
+    try {
+      const content = await decryptJSON(await importDK(dk), data);
+      const insp = await inspectV5(dk, data, fname, text);
+      if (insp.auth === 'bad') throw new Error(TAMPER_MSG);
+      if (!nameTagOkOrAsk(insp)) return null;
+      return { content, insp };
+    } finally { if (own) dk.fill(0); }
+  }
+  async function decryptImport(data) {
+    if (isV5File(data)) { const got = await decryptImportV5(data, '', null); return got && got.content; }
     // otherwise ask for a password (up to 3 tries)
     for (let i = 0; i < 3; i++) {
       const pw = prompt(data.mode === 'own'
@@ -2195,9 +2479,12 @@
   /* V2.00.004〜 読み込むファイルの上限。大きすぎると画面が重くなり、保存もできなくなるため */
   const MAX_FILE_BYTES = 5 * 1024 * 1024;
   const MAX_SETS = 200, MAX_ITEMS = 10000;
-  async function readJSONFile(file) {
+  async function readJSONFile(file) { return (await readJSONFileT(file)).data; }
+  // V2.00.010〜 ファイル名の印を確かめるため、読んだ文字もそのまま返す
+  async function readJSONFileT(file) {
     if (file.size > MAX_FILE_BYTES) throw new Error('ファイルが大きすぎます（5MB まで）');
-    try { return JSON.parse(await file.text()); }
+    const text = await file.text();
+    try { return { data: JSON.parse(text), text }; }
     catch { throw new Error('JSON の形ではありません'); }
   }
   function checkLimits(sets) {

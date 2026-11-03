@@ -1,5 +1,5 @@
-// 依頼101〜107 スニペット帳 V2.00.003〜 の手元テスト（Node 18 以降）
-// 使い方：node test-v2009.mjs [snippet-book.html] [snippet.conf]
+// 依頼101〜108 スニペット帳 V2.00.003〜 の手元テスト（Node 18 以降）
+// 使い方：node test-v2010.mjs [snippet-book.html] [snippet.conf]
 // 1. 自動パスワード（genPassphrase）を HTML から切り出して試す
 // 2. 外のサイトを読まない・フォントがそろっている
 // 3. CSP のハッシュが HTML のスクリプトと合う
@@ -88,7 +88,7 @@ console.log('5. CSP（nginx の設定）');
 }
 
 console.log('6. 版');
-ok(/const APP_VERSION = 'V2\.00\.009';/.test(html), "APP_VERSION が 'V2.00.009'");
+ok(/const APP_VERSION = 'V2\.00\.010';/.test(html), "APP_VERSION が 'V2.00.010'");
 
 console.log('7. 取り込みの検査（V2.00.004〜）');
 {
@@ -104,7 +104,7 @@ console.log('7. 取り込みの検査（V2.00.004〜）');
   ok(s.items[3].secret === true && N.normalizeSet({items:[{}]}).items[0].secret === false, '秘匿の印は前と同じ扱い（前の版のデータの印を落とさない）');
   ok(N.normalizeSet(null).items.length === 0 && N.normalizeSet({ items: 'abc' }).items.length === 0, 'null や文字の items でも止まらない');
   ok(/function readJSONFile/.test(html) && /MAX_FILE_BYTES = 5 \* 1024 \* 1024/.test(html), '5MB を超えるファイルは読まない');
-  ok((html.match(/await readJSONFile\(file\)/g) || []).length === 5 && !/JSON\.parse\(await file\.text\(\)\)/.test(html.replace(/async function readJSONFile[\s\S]*?\n  }/, '')), 'ファイルを読む5か所すべてが readJSONFile を通る（V2.00.009 で「パスキーを合わせる」を足して5か所）');
+  ok((html.match(/await readJSONFileT\(file\)/g) || []).length === 7 && (html.match(/file\.text\(\)/g) || []).length === 1 && /async function readJSONFileT\(file\) \{\s*if \(file\.size > MAX_FILE_BYTES\)[^\n]*\n\s*const text = await file\.text\(\);/.test(html), 'ファイルを読むところはすべて readJSONFileT（大きさを確かめてから読む）を通る（V2.00.010 で「確かめる」を足して6か所＋readJSONFile）');
   ok(/checkLimits\(book\.sets\.concat\(incoming\)\);\s*(if \(pkMerge[\s\S]{0,400}?\}\s*)?book\.sets\.push\(\.\.\.incoming\)/.test(html), '全部確かめてから足す（途中で失敗したら何も足さない）');
 }
 
@@ -152,11 +152,12 @@ console.log('11. 処理の途中でロックしたら、終わったあとに何
   ok(/async function lockNow\(\) \{\s*lockEpoch\+\+;/.test(html), 'ロックのいちばん最初に番号を進める（保存待ちを書くより先）');
   const sect = (from, to) => { const i = html.indexOf(from); return i < 0 ? '' : html.slice(i, html.indexOf(to, i + from.length)); };
   const send = sect("getElementById('sendSet').addEventListener", "getElementById('sendCopy')");
-  ok(/const ep = lockEpoch;[\s\S]*await makePwFile[\s\S]*if \(lockedSince\(ep\)\) return;[\s\S]*downloadJSON[\s\S]*sendPw'\)\.textContent = filePw/.test(send), '送る：暗号化のあと、ロックされていたら書き出さず・パスワードを見せない');
+  ok(/const ep = lockEpoch;[\s\S]*await makePwFile[\s\S]*if \(lockedSince\(ep\)\) return;[^\n]*\n\s*const got = await saveFile[^\n]*\n\s*if \(got\.how === 'cancelled' \|\| lockedSince\(ep\)\)[\s\S]*sendPw'\)\.textContent = filePw/.test(send), '送る：暗号化のあと、ロックされていたら書き出さず・パスワードを見せない');
   const exp = sect("getElementById('exportEnc').addEventListener", 'BACKUP (overwrite backup');
-  ok((exp.match(/if \(lockedSince\(ep\)\) return;\s*downloadJSON/g) || []).length === 2, '全体を書き出し：ファイル専用パスワード・アプリの鍵の両方で、ロックされていたら書き出さない');
+  ok(/if \(lockedSince\(ep\)\) return;\s*if \(\(await saveFile/.test(exp) && /const got = await saveV5Backup\('bk'[^\n]*\n\s*if \(!got\) return;/.test(exp), '全体を書き出し：ファイル専用パスワード・アプリの鍵の両方で、ロックされていたら書き出さない');
   const bak = sect('async function writeOverwriteBackup()', '\n  }\n');
-  ok(/await makeV5File[\s\S]*if \(lockedSince\(ep\)\) return null;[^\n]*\n\s*downloadJSON/.test(bak), '上書きバックアップ：ロックされていたら書き出さず、完了の画面も出さない');
+  const sv = sect('async function saveV5Backup(', '\n  }\n');
+  ok(/await saveV5Backup\('obk'[\s\S]*if \(!got \|\| lockedSince\(ep\)\) return null;/.test(bak) && /await fileNameTag\(dk, text\);\s*if \(lockedSince\(ep\)\) return null;[^\n]*\n[^\n]*\n\s*const got = await saveFile/.test(sv), '上書きバックアップ：ロックされていたら書き出さず、完了の画面も出さない');
   const imp = sect("getElementById('importFile').addEventListener", 'async function decryptImport');
   ok(/data = await decryptImport\(data\);[\s\S]{0,80}\}\s*if \(lockedSince\(ep\)\) return;/.test(imp) && imp.indexOf('lockedSince(ep)') < imp.indexOf('book.sets.push'), '読み込み：復号のあと、ロックされていたら足さない');
   const cp = sect('async function copyText(', '\n  }\n');
@@ -170,8 +171,8 @@ console.log('12. 鍵の処理の途中でロックしても、ロックのあと
   const sect = (from, to) => { const i = html.indexOf(from); return i < 0 ? '' : html.slice(i, html.indexOf(to, i + from.length)); };
   const nv = sect('async function startNewVault(', '\n  }\n');
   const cv = sect('async function commitVault(', '\n  }\n');
-  ok(/const ep = lockEpoch;/.test(nv) && /commitVault\(newVaultMeta\(\[wrap\]\), dk, content, ep\)/.test(nv) && /if \(!ok\) \{ dk\.fill\(0\); return false; \}/.test(nv), '鍵をすべて作り直す・新しく作る：ロックされていたら何も書かずにやめる（commitVault に番号を渡す）');
-  ok(/await encryptJSON\(key, content\);\s*if \(ep !== undefined && lockedSince\(ep\)\) return false;\s*const next = [^\n]*\n(\s*if \(Array\.isArray\(meta\.revoked\)[^\n]*\n)?\s*await writeVault\(next\);/.test(cv), 'commitVault：計算のあと、ロックを確かめてから1回で書く');
+  ok(/const ep = lockEpoch;/.test(nv) && /commitVault\(\{ \.\.\.newVaultMeta\(\[wrap\]\), \.\.\.\(keep \|\| \{\}\) \}, dk, content, ep\)/.test(nv) && /if \(!ok\) \{ dk\.fill\(0\); return false; \}/.test(nv), '鍵をすべて作り直す・新しく作る：ロックされていたら何も書かずにやめる（commitVault に番号を渡す）');
+  ok(/await encryptJSON\(key, content\);\s*if \(ep !== undefined && lockedSince\(ep\)\) return false;\s*const next = [^\n]*\n(\s*if \(Array\.isArray\(meta\.(revoked|history)\)[^\n]*\n)*\s*await writeVault\(next\);/.test(cv), 'commitVault：計算のあと、ロックを確かめてから1回で書く');
   const cvTail = cv.slice(cv.indexOf('// ここから先は'));
   ok(cvTail.length > 0 && !/await /.test(cvTail.replace(/\/\/[^\n]*/g, '')) && /vault = next; dkRaw = dk; cryptoKey = key; book = content;/.test(cvTail), '書けたあと、await をはさまずに vault・鍵・本体を切りかえる（開き直さない）');
   const pk = sect('async function addPasskey()', '\n  }\n');
@@ -232,9 +233,60 @@ console.log('14. パスキーの一覧を合わせる（V2.00.009〜）');
   ok(/data\.vaultId !== vault\.vaultId[\s\S]*await decryptJSON\(cryptoKey, data\)[\s\S]*mergePasskeys\(vault, data\)/.test(mf), '「合わせる」：同じ金庫で、この鍵で開ける（本物の）ファイルのときだけ合わせる');
   ok(/await writeVault\(next\);[\s\S]{0,60}vault = next;/.test(mf), '「合わせる」：書けてから切りかえる');
   const fu = sect('async function finishUnlock(', '// 通常起動');
-  ok(/restored = await decryptJSON\(await importDK\(useDk\), wrapper\);\s*if \(wrapper\.vaultId === vault\.vaultId\) \{[\s\S]{0,140}mergePasskeys\(vault, wrapper\)/.test(fu), '上書き用バックアップ（同じ金庫）：開けたあとに一覧を合わせる');
+  ok(/restored = await decryptJSON\(await importDK\(useDk\), wrapper\);\s*insp = await inspectV5\(useDk, wrapper[\s\S]{0,200}if \(insp\.auth === 'bad'\) throw[\s\S]{0,200}\} else if \(insp\.auth === 'ok'\) \{[\s\S]{0,120}mergePasskeys\(vault, wrapper\)/.test(fu), '上書き用バックアップ（同じ金庫）：開けて、改ざんの印が合ったときだけ一覧を合わせる（V2.00.010〜）');
   ok(/revoked: \[\.\.\.new Set\(\[\.\.\.\(vault\.revoked \|\| \[\]\), w\.credId\]\)\]/.test(html), 'パスキーを外したら、外した印を残す');
-  ok(/const revoked = Array\.isArray\(meta\.revoked\)[\s\S]{0,400}\.\.\.revoked, \.\.\.\(await encryptJSON/.test(html) && /if \(Array\.isArray\(meta\.revoked\) && meta\.revoked\.length\) next\.revoked = meta\.revoked;/.test(html), '外した印は、バックアップにも新しい金庫にも引き継ぐ');
+  ok(/const revoked = Array\.isArray\(meta\.revoked\)[\s\S]{0,400}\.\.\.revoked, \.\.\.hist, \.\.\.\(await encryptJSON/.test(html) && /if \(Array\.isArray\(meta\.revoked\) && meta\.revoked\.length\) next\.revoked = meta\.revoked;/.test(html), '外した印は、バックアップにも新しい金庫にも引き継ぐ');
+}
+
+console.log('15. 改ざんを見分ける印・履歴・ファイル名の印・保存先を選ぶ（V2.00.010〜）');
+{
+  const sect = (from, to) => { const i = html.indexOf(from); return i < 0 ? '' : html.slice(i, html.indexOf(to, i + from.length)); };
+  // 履歴を合わせる関数そのものを動かす
+  const hsrc = sect('const HIST_KINDS', '  // V2.00.010〜 開いた・閲覧したこと');
+  const H = new Function('ua', 'isIOS', 'localStorage', hsrc + '\nreturn { mergeHistory, histEntry, isBackupKind, HIST_MAX };')('Mozilla/5.0 (Macintosh) Chrome/130 Safari/537', false, { getItem: () => '事務所の MacBook' });
+  const e = H.histEntry('obk');
+  ok(e.device === '事務所の MacBook' && e.browser === 'Chrome' && e.kind === 'obk' && Number.isFinite(e.at), '履歴の1行：端末の名前（付けた名前）・ブラウザ・日時・種類');
+  let m = H.mergeHistory([{ ...e }], [{ ...e, tag:'ABCDEFGHJK' }, { at:1, device:'iPhone', browser:'Safari', kind:'open', how:'pk' }]);
+  ok(m.length === 2 && m[0].at === 1 && m[1].tag === 'ABCDEFGHJK', '同じものは1つにする（ファイル名の印があるほうを残す）・古い順');
+  m = H.mergeHistory([], [null, 'x', { at:'1', device:'a', browser:'b', kind:'obk' }, { at:2, device:'a', browser:'b', kind:'hack' }, { at:3, device:'<b>', browser:'b', kind:'bk', tag:'bad' }]);
+  ok(m.length === 1 && m[0].kind === 'bk' && !('tag' in m[0]), '形のおかしい行・知らない種類は入れない・印の形が違えば落とす');
+  const many = Array.from({ length: 500 }, (_, i) => ({ at:i, device:'d', browser:'b', kind: i % 5 ? 'open' : 'obk' }));
+  m = H.mergeHistory(many, []);
+  ok(m.filter(x => H.isBackupKind(x.kind)).length === 100 && m.filter(x => !H.isBackupKind(x.kind)).length === 200, '多くなったら古いものから消す（バックアップ100・開いた200。開いた履歴でバックアップの履歴が押し出されない）');
+  // 書き出し
+  const sv = sect('async function saveV5Backup(', '\n  }\n');
+  ok(/mergeHistory\(vault\.history, \[entry\]\)/.test(sv) && /makeV5File\([^\n]*cryptoKey, dk, fullBook\(true\), extra\)/.test(sv), 'バックアップのたびに履歴へ1行足して、ファイルに入れる');
+  ok(/`\$\{nm\}-\$\{date\}-\$\{time\}-\$\{kind\}-\$\{tag\}\.enc\.json`/.test(sv) && /const tag = await fileNameTag\(dk, text\);/.test(sv), 'ファイル名：名前-日付-時刻-obk-印.enc.json（印は書き出す文字そのものの SHA-256 から作る）');
+  ok(/const text = JSON\.stringify\(out, null, 2\);[\s\S]*saveFile\([^\n]*, text\)/.test(sv), '印を作った文字と、保存する文字が同じ');
+  ok(/history: mergeHistory\(vault\.history, \[\{ \.\.\.entry, tag \}\]\)/.test(sv) && /await writeVault\(next\); if \(!lockedSince\(ep\)\) vault = next;/.test(sv), '保存できたら、この端末の履歴にも印つきで残す（書けてから切りかえる）');
+  ok(/const time = `\$\{p\(d\.getHours\(\)\)\}\$\{p\(d\.getMinutes\(\)\)\}`/.test(html), '時刻は 時分 の4けた');
+  // 保存先を選ぶ
+  const sf = sect('async function saveFile(', '\n  }\n');
+  ok(/typeof window\.showSaveFilePicker === 'function'/.test(sf) && /suggestedName: filename/.test(sf), '保存先を選ぶ画面を出す（出せるブラウザだけ）');
+  ok(/e\.name === 'AbortError'\) return \{ how:'cancelled'/.test(sf) && /downloadBlob\(filename, text\);\s*return \{ how:'downloaded'/.test(sf), '選ぶ画面でやめたら保存しない・出せないときはダウンロード');
+  ok(/if \(got\.how === 'cancelled'\) \{ showToast\('保存をやめました'\); return null; \}/.test(sv), 'やめたら履歴にも残さない');
+  // 取りこむところ
+  const mf = sect("$('mergePkFile').addEventListener", "$('regenRkBtn')");
+  ok(/const r = await inspectV5\(dkRaw, data, file\.name, text\);[\s\S]{0,80}if \(r\.auth === 'bad'\) throw new Error\(TAMPER_MSG\);\s*if \(r\.auth === 'none'\) throw/.test(mf) && mf.indexOf('inspectV5') < mf.indexOf('mergePasskeys('), '「合わせる」：印が合わない・印が無い（V2.00.009 まで）ファイルでは合わせない（チャッピーさんの指摘）');
+  const imp = sect("getElementById('importFile').addEventListener", 'async function decryptImport');
+  ok(/const same = insp && insp\.auth === 'ok' && vault && rawFile\.vaultId === vault\.vaultId;\s*const pkMerge = same \?/.test(imp), '読み込み：印が合うときだけ一覧と履歴を合わせる');
+  const st = sect("$('startFile').addEventListener", '/* ---------- ふだん開く');
+  ok(/const r = await inspectV5\(dk, data, file\.name, text\);[\s\S]{0,40}if \(r\.auth === 'bad'\) \{ dk\.fill\(0\); errEl\.textContent = TAMPER_MSG; return; \}/.test(st), 'バックアップから始める：書きかえられていたら始めない');
+  const fu = sect('async function finishUnlock(', '// 通常起動');
+  ok(/if \(insp && !nameTagOkOrAsk\(insp\)\) \{[\s\S]{0,120}dk\.fill\(0\);\s*errEl\.textContent = '取りこみをやめました/.test(fu), '上書き用バックアップで起動：ファイル名の印が合わず「やめる」なら、何も変えない');
+  const di = sect('async function decryptImportV5(', 'async function decryptImport(data)');
+  ok(/if \(insp\.auth === 'bad'\) throw new Error\(TAMPER_MSG\);\s*if \(!nameTagOkOrAsk\(insp\)\) return null;/.test(di) && /finally \{ if \(own\) dk\.fill\(0\); \}/.test(di), '読み込み・閲覧専用：書きかえられていたら開かない・聞いてやめたら開かない');
+  const ins = sect('async function inspectV5(', '\n  }\n');
+  ok(/if \(auth === 'none' && tag\) auth = 'bad';/.test(ins), 'ファイル名に印があるのに中の印が無い（印を消した書きかえ）も見破る');
+  ok(/confirm\('このファイルは改ざんの恐れがあります。/.test(html) && /const TAMPER_MSG = 'このファイルは改ざんの恐れがあります/.test(html), '合わないときは「このファイルは改ざんの恐れがあります」と出す（かずやさんの指定）');
+  // 履歴を出す・残す
+  ok(/<div class="restore-head">バックアップの履歴/.test(html) && /<div class="restore-head">開いた履歴/.test(html) && html.indexOf('id="bkHistList"') > html.indexOf('id="rekeyBtn"'), '鍵の設定（復元キーの下）に、バックアップの履歴と開いた履歴を出す');
+  ok(/finishUnlock\(await openWithPasskey\(passkeyWraps\(vault\)\), 'pk'\)/.test(html) && /await finishUnlock\(dk, 'rk'\);/.test(html) && (html.match(/noteHistory\('open', how\);/g) || []).length === 2 && /noteHistory\('view'\);/.test(html), '開いたとき（パスキー・復元キー）と閲覧専用で開いたときに履歴を残す');
+  ok(/if \(Array\.isArray\(meta\.history\) && meta\.history\.length\) next\.history = meta\.history;/.test(html) && /startNewVault\(book, 'rekey', \{ history: oldVault\.history \}\)/.test(html), '履歴は新しい金庫・鍵をすべて作り直したあとにも引き継ぐ');
+  const ws = sect('function wipeScreen()', '\n  }\n');
+  ok(/\$\('bkHistList'\)\.innerHTML = ''; \$\('openHistList'\)\.innerHTML = ''; \$\('checkBkOut'\)\.textContent = '';/.test(ws), 'ロックのとき、履歴と確かめた結果も画面から消す');
+  ok(/const hist = Array\.isArray\(meta\.history\)[^\n]*encryptJSON\(key, meta\.history\)/.test(html), 'バックアップの中の履歴は暗号化する（端末の名前を平文で出さない）');
+  ok(/<span class="pk-name">\$\{esc\(histText\(x\)\)\}<\/span><span class="pk-date">\$\{esc\(histWhat\(x\)\)\}/.test(html), '履歴の文字は esc を通して出す（ほかの端末から来た名前で画面を書きかえさせない）');
 }
 
 console.log(`合格 ${pass} / 不合格 ${fail}`);

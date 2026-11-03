@@ -544,7 +544,7 @@
      ファイル本体を変更したら版番号を上げ、公式サイトの
      「バージョン ⇄ ハッシュ」対応表も更新すること。
      ========================================================= */
-  const APP_VERSION = 'V2.01.001';
+  const APP_VERSION = 'V2.01.002';
 
   /* =========================================================
      Storage keys
@@ -751,8 +751,19 @@
     const all = [...String(fname || '').matchAll(/-o?bk-([0-9A-Za-z]{10})(?![0-9A-Za-z])/g)];
     return all.length ? all[all.length - 1][1].toUpperCase() : null;
   }
+  /* V2.01.002〜 ファイルに書かれた計算回数と salt を、計算を始める前に確かめる（大きな回数で画面を固まらせない） */
+  const PBKDF2_ITER_MIN = 100000, PBKDF2_ITER_MAX = 2000000;
+  function v4Params(data) {
+    const iter = data.iter === undefined ? PBKDF2_ITER_OLD : data.iter;
+    if (!Number.isInteger(iter) || iter < PBKDF2_ITER_MIN || iter > PBKDF2_ITER_MAX) throw new Error('このファイルの計算回数は、このアプリでは扱えません（書きかえられたか、別のアプリのファイルです）');
+    let salt;
+    try { salt = new Uint8Array(b64.dec(data.salt)); } catch { salt = null; }
+    if (!salt || salt.length < 16 || salt.length > 64) throw new Error('このファイルの形がおかしいので開けません');
+    return { iter, salt };
+  }
   async function openV4File(data, password) {
-    const key = await deriveKey(password, new Uint8Array(b64.dec(data.salt)), data.iter || PBKDF2_ITER_OLD);
+    const { iter, salt } = v4Params(data);
+    const key = await deriveKey(password, salt, iter);
     return decryptJSON(key, data);
   }
   async function makePwFile(password, payload, extra) {
@@ -795,6 +806,7 @@
   let lockEpoch = 0;
   const lockedSince = ep => ep !== lockEpoch;
   let savePending = false;  // V2.00.004〜 保存待ちがあるか（ロックの前に書く）
+  let staleTab = false;     // V2.01.002〜 ほかのタブで中身か鍵が変わった（このタブは保存しない）
   let viewOnly = false;   // 読み込むだけ（保存しない）モード
   let pendingRestore = null;  // 起動時に取り込む上書きバックアップ（{data} 復号済み）
   const OVERWRITE_MARK = 'overwrite-backup';  // 上書き用バックアップの識別印
@@ -938,10 +950,36 @@
   /* V2.00.008〜 金庫（鍵の情報＋暗号化した本体）は1つの項目に1回で書く。
      書けなかったら何も変えずに知らせる（呼ぶ側は、書けてから vault・鍵・画面を切りかえる） */
   const SAVE_FAIL_MSG = 'この端末に保存できませんでした（保存の容量がいっぱいかもしれません）。何も変えていません';
-  async function writeVault(next) {
-    try { await store.set(META5_KEY, JSON.stringify(next)); }
-    catch { throw new Error(SAVE_FAIL_MSG); }
-    if (next.data) dropLegacyData();
+  /* V2.01.002〜 古い状態で上書きしない（チャッピーさんの再点検）。
+     - 金庫に更新番号 rev を持たせ、書く直前に「保存されている番号」と「もとにした番号」を比べる。ちがえば書かない
+       （ほかのタブが先に書いた・このタブの古い処理があとから終わった、のどちらも止まる）
+     - 書くのは1つずつ（このタブの中は順番待ち、タブをまたいでは Web Locks）
+     - make は「いまの vault をもとに next を作る」関数。順番が来てから作るので、途中のほかの保存を消さない。null なら書かない
+     - 書けたら vault を書いた中身に切りかえる。onWritten は書けた直後に、await をはさまずに呼ぶ */
+  const STALE_MSG = 'ほかのタブ（ウィンドウ）で、この端末の保存が先に変わっていました。古い内容で上書きしないように、何も変えていません。いったんロックして開き直してください';
+  let vaultQueue = Promise.resolve();
+  function storedRev() {
+    return store.get(META5_KEY).then(r => { const c = r && r.value ? JSON.parse(r.value) : null; return c && Number.isInteger(c.rev) ? c.rev : 0; }, () => 0);
+  }
+  function writeVault(make, onWritten) {
+    const run = async () => {
+      const next = typeof make === 'function' ? make() : make;
+      if (!next) return null;
+      const want = Number.isInteger(next.rev) ? next.rev : 0;
+      if ((await storedRev()) !== want) throw new Error(STALE_MSG);
+      const out = { ...next, rev: want + 1 };
+      try { await store.set(META5_KEY, JSON.stringify(out)); }
+      catch { throw new Error(SAVE_FAIL_MSG); }
+      vault = out;
+      if (onWritten) onWritten(out);
+      if (out.data) dropLegacyData();
+      return out;
+    };
+    const locked = () => (navigator.locks && typeof navigator.locks.request === 'function')
+      ? navigator.locks.request('snippet-book-vault', run) : run();
+    const p = vaultQueue.then(locked, locked);
+    vaultQueue = p.catch(() => {});
+    return p;
   }
   function dropLegacyData() { try { store.delete(DATA5_KEY).catch(() => {}); } catch {} }
   // 本体を読む：新しい形（meta.data）を先に、無ければ V2.00.007 までの置き場から
@@ -1007,9 +1045,8 @@
   // V2.00.010〜 開いた・閲覧したことを、この端末の金庫の履歴に残す（書けなくても止めない）
   async function noteHistory(kind, how) {
     if (!vault || vault.version !== 5) return;
-    const ep = lockEpoch;
-    const next = { ...vault, history: mergeHistory(vault.history, [histEntry(kind, how)]) };
-    try { await writeVault(next); if (!lockedSince(ep) || kind === 'view') vault = next; } catch {}
+    const vid = vault.vaultId, e = histEntry(kind, how);
+    try { await writeVault(() => vault && vault.vaultId === vid ? { ...vault, history: mergeHistory(vault.history, [e]) } : null); } catch {}
   }
   /* V2.00.010〜 V2 のバックアップを確かめる（開けた DK で）。
      auth：'ok' 印が合う / 'none' 印が無い（V2.00.009 まで）/ 'bad' 書きかえられている
@@ -1056,14 +1093,19 @@
     const key = await importDK(dk);
     const blob = await encryptJSON(key, content);
     if (ep !== undefined && lockedSince(ep)) return false;
-    const next = { version:5, vaultId: meta.vaultId, wraps: meta.wraps, data: blob };
-    if (Array.isArray(meta.revoked) && meta.revoked.length) next.revoked = meta.revoked;   // V2.00.009〜 外したパスキーの印も引き継ぐ
-    if (Array.isArray(meta.history) && meta.history.length) next.history = meta.history;   // V2.00.010〜 バックアップの履歴も引き継ぐ
-    await writeVault(next);   // 失敗したら throw（何も変わっていない）
-    // ここから先は await をはさまない
-    if (dkRaw && dkRaw !== dk) dkRaw.fill(0);
-    vault = next; dkRaw = dk; cryptoKey = key; book = content;
-    return true;
+    let ok = true;
+    await writeVault(() => {   // 失敗したら throw（何も変わっていない）
+      if (ep !== undefined && lockedSince(ep)) { ok = false; return null; }
+      const next = { version:5, vaultId: meta.vaultId, wraps: meta.wraps, data: blob, rev: vault ? (vault.rev || 0) : 0 };   // V2.01.002〜 いまの保存の上に書く
+      if (Array.isArray(meta.revoked) && meta.revoked.length) next.revoked = meta.revoked;   // V2.00.009〜 外したパスキーの印も引き継ぐ
+      if (Array.isArray(meta.history) && meta.history.length) next.history = meta.history;   // V2.00.010〜 バックアップの履歴も引き継ぐ
+      return next;
+    }, () => {
+      // 書けた直後に、await をはさまずに鍵と本体を切りかえる（vault は writeVault が切りかえる）
+      if (dkRaw && dkRaw !== dk) dkRaw.fill(0);
+      dkRaw = dk; cryptoKey = key; book = content;
+    });
+    return ok;
   }
   async function openSession(dk) {
     if (dkRaw && dkRaw !== dk) dkRaw.fill(0);
@@ -1224,10 +1266,11 @@
     const w = await makePasskeyWrap(dkRaw, r.prfOut, r.credId, r.prfSalt, label);
     r.prfOut.fill(0);
     if (lockedSince(ep) || !dkRaw) throw stopped();   // V2.00.007〜 包むあいだにロックされた → 足さず・保存せず・知らせない
-    const next = { ...vault, wraps: vault.wraps.concat(w) };
-    await writeVault(next);   // V2.00.008〜 書けてから切りかえる（書けなければ throw・何も変えない）
-    // ここから先は await をはさまない
-    vault = next;
+    const vid = vault.vaultId;
+    await writeVault(() => {   // V2.00.008〜 書けてから切りかえる（書けなければ throw・何も変えない）
+      if (!vault || vault.vaultId !== vid) throw stopped();
+      return { ...vault, wraps: vault.wraps.concat(w) };
+    });
     markNeedsBackup();
     showToast('パスキーを登録しました');
     setStatus(`パスキー「${label}」を登録しました。次からは「🔑 パスキーで開く」で開けます`);
@@ -1409,6 +1452,8 @@
 
     // 通常起動：前回データで開く
     await openSession(dk);
+    const fresh = await loadJSON(META5_KEY);   // V2.01.002〜 ロック画面のあいだに、ほかのタブが書いたかもしれないので読み直す
+    if (fresh && fresh.version === 5 && Array.isArray(fresh.wraps)) vault = fresh;
     const blob = await readDataBlob(vault);
     if (!blob) {
       book = normalize(SEED);   // まだ本体が無い（作りかけ）。書くのは、編集したとき
@@ -1424,7 +1469,57 @@
     }
     enterApp();
     noteHistory('open', how);   // V2.00.010〜 開いた履歴
+    offerUnsaved();             // V2.01.002〜 ロックの前に保存できなかった変更を戻すか聞く
   }
+
+  /* V2.01.002〜 ロックの前に保存できなかった編集を、鍵（DK）で暗号化して残す。
+     中身を隠すこと（ロックする）と、編集を失わないことを両立する。この端末に書けないときは、このタブの中だけに残す */
+  const UNSAVED_KEY = 'snippet-book:v5:unsaved';
+  let unsavedStash = null;
+  async function stashUnsaved() {
+    try {
+      unsavedStash = { vaultId: vault.vaultId, at: Date.now(), ...(await encryptJSON(cryptoKey, book)) };
+      try { await store.set(UNSAVED_KEY, JSON.stringify(unsavedStash)); } catch {}
+    } catch {}
+    unsavedChanges = false;
+  }
+  function clearUnsaved() { unsavedStash = null; try { store.delete(UNSAVED_KEY).catch(() => {}); } catch {} }
+  async function offerUnsaved() {
+    const s = unsavedStash || await loadJSON(UNSAVED_KEY);
+    if (!s || !vault || !cryptoKey || s.vaultId !== vault.vaultId || viewOnly) return;
+    let content;
+    try { content = normalize(await decryptJSON(cryptoKey, s)); } catch { return; }
+    const ep = lockEpoch;
+    if (confirm(`ロックの前に、この端末に保存できなかった変更があります（${histText({ at:s.at, device:'', browser:'' }).split('　')[0]}）。\n\nこの変更で、いまのデータを置きかえますか？\n（置きかえると、そのあとにほかのタブで保存した内容は消えます）`)) {
+      if (lockedSince(ep)) return;
+      book = content; render(); renderSets();
+      try { await persist(); clearUnsaved(); if (!lockedSince(ep)) setStatus('保存できなかった変更を戻しました'); }
+      catch (e) { if (!lockedSince(ep)) setStatus('戻した変更を保存できませんでした：' + e.message, true); }
+    } else if (confirm('保存できなかった変更を捨てますか？\n\n「キャンセル」なら、次に開いたときにもう一度聞きます。')) {
+      clearUnsaved();
+    }
+  }
+
+  /* V2.01.002〜 ほかのタブ（ウィンドウ）で金庫が変わったとき。
+     - 中身が同じ（鍵の一覧や履歴だけが変わった）なら、その内容をこのタブにも取りこむ（外したパスキーを古い一覧で戻さない）
+     - 中身か鍵が変わったなら、このタブは古いので保存しない。ロックして開き直してもらう */
+  window.addEventListener('storage', e => {
+    if (e.key !== META5_KEY) return;
+    let s = null; try { s = e.newValue ? JSON.parse(e.newValue) : null; } catch {}
+    if (appEl.classList.contains('hidden') || !cryptoKey) {   // ロック画面：読み直すだけ
+      if (s && s.version === 5 && !pendingRestore && !$('unlockCard').classList.contains('hidden')) { vault = s; showUnlock(); }
+      return;
+    }
+    if (viewOnly || !vault) return;
+    if (s && s.vaultId === vault.vaultId && s.data && vault.data && s.data.ct === vault.data.ct) {
+      vault = s;
+      if (!$('keysOverlay').classList.contains('hidden')) renderKeys();
+      return;
+    }
+    staleTab = true;
+    setStatus(STALE_MSG, true);
+    showToast('ほかのタブで変更されました。ロックして開き直してください', true);
+  });
 
   /* 上書きバックアップ・ファイル選択 */
   function clearRestore() {
@@ -1530,10 +1625,13 @@
       del.className = 'cred-copy'; del.textContent = '外す';
       del.addEventListener('click', async () => {
         if (!confirm(`パスキー「${w.label}」を外しますか？\n\nこのパスキーでは開けなくなります。端末のパスワード管理に残る「スニペット帳」のパスキーは、そちらで消してください。`)) return;
-        const next = { ...vault, wraps: vault.wraps.filter(x => x !== w), revoked: [...new Set([...(vault.revoked || []), w.credId])] };   // V2.00.009〜 外した印を残す（ほかの端末のバックアップから戻らない）
-        try { await writeVault(next); }   // V2.00.008〜 書けてから切りかえる
+        const vid = vault.vaultId;
+        try {   // V2.00.008〜 書けてから切りかえる・V2.01.002〜 順番が来たときの vault から外す
+          await writeVault(() => vault && vault.vaultId === vid ? { ...vault,
+            wraps: vault.wraps.filter(x => !(x.type === 'passkey' && x.credId === w.credId)),
+            revoked: [...new Set([...(vault.revoked || []), w.credId])] } : null);   // V2.00.009〜 外した印を残す（ほかの端末のバックアップから戻らない）
+        }
         catch (e) { showToast('外せませんでした', true); $('keysErr').textContent = e.message; return; }
-        vault = next;
         markNeedsBackup();
         renderKeys();
         showToast('パスキーを外しました');
@@ -1647,13 +1745,17 @@
       const m = mergePasskeys(vault, data);
       const history = mergeHistory(vault.history, r.history);
       if (!m.added && !m.removed && (m.revoked.length === (vault.revoked || []).length) && history.length === (vault.history || []).length) { showToast('新しく合わせるパスキーはありません'); return; }
-      const next = { ...vault, wraps: m.wraps, revoked: m.revoked, history };
-      await writeVault(next);   // 書けてから切りかえる
+      const vid = vault.vaultId;
+      let got = m;
+      await writeVault(() => {   // 書けてから切りかえる・V2.01.002〜 順番が来たときの vault で合わせ直す
+        if (!vault || vault.vaultId !== vid) return null;
+        got = mergePasskeys(vault, data);
+        return { ...vault, wraps: got.wraps, revoked: got.revoked, history: mergeHistory(vault.history, r.history) };
+      });
       if (lockedSince(ep)) return;
-      vault = next;
       markNeedsBackup();
       renderKeys();
-      showToast(`パスキーの一覧を合わせました（足した ${m.added} 件・外した ${m.removed} 件）`);
+      showToast(`パスキーの一覧を合わせました（足した ${got.added} 件・外した ${got.removed} 件）`);
     } catch (err) {
       if (!lockedSince(ep)) $('keysErr').textContent = err.message;
     }
@@ -1665,15 +1767,14 @@
     if (lockedSince(ep) || !dkRaw) return;
     const nw = await makeRecoveryWrap(dkRaw, rk);
     if (lockedSince(ep)) return;   // V2.00.007〜 包むあいだにロックされた → 変えない（古い復元キーのまま）
-    const next = { ...vault, wraps: vault.wraps.filter(w => w.type !== 'recovery').concat(nw) };
-    try { await writeVault(next); }   // V2.00.008〜 書けてから切りかえる
+    const vid = vault.vaultId;
+    try { await writeVault(() => { if (!vault || vault.vaultId !== vid) throw new Error('鍵が変わっていました'); return { ...vault, wraps: vault.wraps.filter(w => w.type !== 'recovery').concat(nw) }; }); }   // V2.00.008〜 書けてから切りかえる
     catch (e) {
       $('keysErr').textContent = e.message + '。復元キーは前のままです（いま控えた新しい復元キーは使えません）';
       showToast('復元キーを作り直せませんでした', true);
       return;
     }
     // ここから先は await をはさまない
-    vault = next;
     markNeedsBackup();
     renderKeys();
     showToast('復元キーを作り直しました');
@@ -1685,14 +1786,13 @@
     $('keysOverlay').classList.add('hidden');
     try {
       const ep = lockEpoch;
-      if (!(await startNewVault(book, 'rekey', { history: oldVault.history }))) { if (!lockedSince(ep)) vault = oldVault; return; }
+      if (!(await startNewVault(book, 'rekey', { history: oldVault.history }))) return;   // V2.01.002〜 vault は書けたときだけ writeVault が切りかえる
       if (oldDk) oldDk.fill(0);
       markNeedsBackup();
       setStatus('鍵をすべて作り直しました。新しい形でバックアップを取り直し、パスワード管理に残る古い「スニペット帳」のパスキーは消してください');
       await offerPasskey();
     } catch (e) {
       if (appEl.classList.contains('hidden')) return;   // ロックされたあとなら何も出さない
-      vault = oldVault;
       setStatus('作り直せませんでした：' + e.message, true);
     }
   });
@@ -1751,10 +1851,14 @@
   async function lockNow() {
     lockEpoch++;   // V2.00.006〜 いま動いている処理に「ロックされた」と知らせる（保存待ちを書くより先に）
     // V2.00.004〜 保存待ちがあれば、鍵を消す前に書いておく（自動ロックで編集が消えないように）
-    if (savePending && cryptoKey && !viewOnly) {
-      clearTimeout(saveTimer); savePending = false;
-      try { await persist(); } catch {}
+    // V2.01.002〜 動いている保存も待つ。それでも保存できなければ、編集中の内容を鍵で暗号化して残してからロックする（次に開いたときに戻せる）
+    if (cryptoKey && !viewOnly) {
+      if (savePending) { clearTimeout(saveTimer); savePending = false; unsavedChanges = true; }
+      try { await persistChain; } catch {}
+      if (unsavedChanges) { try { await persist(); } catch {} }
+      if (unsavedChanges) await stashUnsaved();
     }
+    staleTab = false;
     cryptoKey = null;
     if (dkRaw) dkRaw.fill(0);
     dkRaw = null;
@@ -1909,14 +2013,30 @@
   }
 
   // V2.00.008〜 本体は鍵の情報と同じ項目に、1回で書く（書けなければ throw。呼ぶ側が知らせる）
-  async function persist() {
+  /* V2.01.002〜 保存は1つずつ順番に行う（あとの保存は、前の保存が終わってから、その時の中身を暗号化する）。
+     暗号化のあいだに鍵か金庫が変わっていたら、古い鍵の暗号文は書かない（新しい鍵でもう一度）。
+     前の版は、鍵をすべて作り直したあとに古い保存が終わると、新しい金庫を古い金庫の情報で上書きした */
+  let persistChain = Promise.resolve();
+  let unsavedChanges = false;   // 保存できていない編集がある（ロックのときに残す）
+  function persist() {
+    const run = () => doPersist(false);
+    const p = persistChain.then(run, run);
+    persistChain = p.catch(() => {});
+    return p;
+  }
+  async function doPersist(again) {
     if (!cryptoKey || !vault) return;
-    const v = vault;
-    const blob = await encryptJSON(cryptoKey, book);
-    const cur = vault && vault.vaultId === v.vaultId ? vault : v;   // 途中でロック → 読み直した同じ金庫でも書ける
-    const next = { ...cur, data: blob };
-    await writeVault(next);
-    if (vault && vault.vaultId === next.vaultId) vault.data = blob;
+    if (staleTab) { unsavedChanges = true; throw new Error(STALE_MSG); }
+    const key = cryptoKey, vid = vault.vaultId;
+    const blob = await encryptJSON(key, book);
+    let moved = false;
+    try {
+      await writeVault(() => {
+        if (!vault || vault.vaultId !== vid || cryptoKey !== key) { moved = true; return null; }
+        return { ...vault, data: blob };
+      }, () => { unsavedChanges = false; });
+    } catch (e) { unsavedChanges = true; throw e; }
+    if (moved && !again && cryptoKey && vault && cryptoKey !== key) return doPersist(true);
   }
   function save() {
     if (viewOnly) return;   // 閲覧専用モードでは保存しない
@@ -1928,7 +2048,7 @@
       savePending = false;
       const ep = lockEpoch;
       try { await persist(); if (!lockedSince(ep)) setStatus(`保存しました · ${activeSet().items.length} 件 / ${book.sets.length} セット`); }
-      catch { if (!lockedSince(ep)) setStatus('この端末に保存できませんでした。バックアップを取ってください', true); }
+      catch (e) { if (!lockedSince(ep)) setStatus((e && e.message === STALE_MSG ? STALE_MSG : 'この端末に保存できませんでした。バックアップを取ってください'), true); }
     }, 300);
   }
   function setStatus(msg, isError) {
@@ -2339,8 +2459,8 @@
     const got = await saveFile(`${nm}-${date}-${time}-${kind}-${tag}.enc.json`, text);
     if (got.how === 'cancelled') { showToast('保存をやめました'); return null; }
     if (!lockedSince(ep)) {
-      const next = { ...vault, history: mergeHistory(vault.history, [{ ...entry, tag }]) };
-      try { await writeVault(next); if (!lockedSince(ep)) vault = next; }
+      const vid = vault.vaultId;
+      try { await writeVault(() => vault && vault.vaultId === vid ? { ...vault, history: mergeHistory(vault.history, [{ ...entry, tag }]) } : null); }
       catch { if (!lockedSince(ep)) setStatus('バックアップは書き出しましたが、履歴をこの端末に残せませんでした', true); }
     }
     return got;
@@ -2508,8 +2628,12 @@
       else throw new Error('形式が認識できません');
       checkLimits(book.sets.concat(incoming));
       if (pkMerge && (pkMerge.added || pkMerge.removed || histMerged.length !== (vault.history || []).length)) {
-        const next = { ...vault, wraps: pkMerge.wraps, revoked: pkMerge.revoked, history: histMerged };
-        try { await writeVault(next); if (!lockedSince(ep)) vault = next; } catch {}
+        const vid = vault.vaultId;
+        try { await writeVault(() => {
+          if (!vault || vault.vaultId !== vid) return null;
+          const m2 = mergePasskeys(vault, rawFile);
+          return { ...vault, wraps: m2.wraps, revoked: m2.revoked, history: mergeHistory(vault.history, insp.history) };
+        }); } catch {}
         if (lockedSince(ep)) return;
       }
       book.sets.push(...incoming);
@@ -2547,6 +2671,7 @@
   }
   async function decryptImport(data) {
     if (isV5File(data)) { const got = await decryptImportV5(data, '', null); return got && got.content; }
+    v4Params(data);   // V2.01.002〜 計算回数がおかしいファイルは、パスワードを聞く前に断る
     // otherwise ask for a password (up to 3 tries)
     for (let i = 0; i < 3; i++) {
       const pw = prompt(data.mode === 'own'

@@ -12,7 +12,7 @@ const a = html.indexOf('/*<core>'), b = html.indexOf('/*</core>*/');
 if (a < 0 || b < 0) { console.error('core の目印が見つかりません'); process.exit(1); }
 const names = ['enc','dec','b64','b64url','randomBytes','PBKDF2_ITER_OLD','PBKDF2_ITER_NEW','deriveKey','encryptJSON','decryptJSON',
   'newDK','importDK','genRecoveryKey','normalizeRecoveryKey','formatRecoveryKey','makeRecoveryWrap','makePasskeyWrap',
-  'openWithRecovery','openWithPrf','newVaultMeta','isV5File','isV4File','makeV5File','openV4File','makePwFile','RK_ABC','checkV5Auth','fileNameTag','nameTagOf','canonJSON'];
+  'openWithRecovery','openWithPrf','newVaultMeta','isV5File','isV4File','makeV5File','openV4File','makePwFile','RK_ABC','checkV5Auth','fileNameTag','nameTagOf','canonJSON','v4Params'];
 const C = new Function('crypto', html.slice(a, b) + `\nreturn { ${names.join(', ')} };`)(globalThis.crypto || webcrypto);
 
 let pass = 0, fail = 0;
@@ -136,6 +136,18 @@ console.log('5. 古い形（V1）とパスワードのファイル');
   ok(pf.iter === C.PBKDF2_ITER_NEW && pf.iter >= 600000 && pf.mode === 'own', '新しく作るパスワードのファイルは 60万回で、回数を書く');
   ok(same(await C.openV4File(pf, 'Tora-ume-Kaze-77#'), BOOK), 'ファイル専用パスワードのファイルを開ける');
   ok(await throws(() => C.openV4File({ ...pf, iter: C.PBKDF2_ITER_OLD }, 'Tora-ume-Kaze-77#')), '回数が違えば開かない（回数をちゃんと使っている）');
+}
+
+console.log('5b. ファイルの計算回数を確かめる（V2.01.002〜）');
+{
+  const salt = C.b64.enc(C.randomBytes(16));
+  const bad = it => { try { C.v4Params({ salt, iter: it }); return false; } catch { return true; } };
+  ok(C.v4Params({ salt }).iter === C.PBKDF2_ITER_OLD && C.v4Params({ salt, iter: C.PBKDF2_ITER_NEW }).iter === C.PBKDF2_ITER_NEW, '回数の無いもの（V1）と 60万回のものは受け付ける');
+  ok(bad(4294967295) && bad(1e9) && bad(2000001), 'とても大きい回数（約43億回など）は、計算を始める前に断る');
+  ok(bad(1.5) && bad('600000') && bad(-1) && bad(0) && bad(99999) && bad(null), '整数でない・小さすぎる・文字の回数も断る');
+  ok((() => { try { C.v4Params({ salt: 'AAAA', iter: 600000 }); return false; } catch { return true; } })(), 'salt が短すぎるものも断る');
+  let threw = false; try { await C.openV4File({ salt, iter: 4294967295, iv:'AAAA', ct:'AAAA' }, 'x'); } catch (e) { threw = /計算回数/.test(e.message); }
+  ok(threw, 'openV4File も、計算の前に断る');
 }
 
 console.log('6. 金庫の形');

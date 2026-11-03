@@ -7,8 +7,8 @@
 よく使う文章・コマンド・ID やパスワードを登録しておき、クリック（スマホはタップ）だけでコピーできる道具です。
 
 - 使う：**https://snippet.eiwa-up.jp/**
-- マニュアル：[docs/manual-V2.01.001.pdf](docs/manual-V2.01.001.pdf)
-- 現行版：**Version 2.01.001**
+- マニュアル：[docs/manual-V2.01.002.pdf](docs/manual-V2.01.002.pdf)
+- 現行版：**Version 2.01.002**
 
 > A small, single-file web app to store and copy text snippets and credentials. Everything stays in your browser, encrypted with a random key that is wrapped by a passkey (WebAuthn PRF) and by a recovery key. Your data is never sent anywhere, and the page loads nothing from other sites.
 
@@ -43,6 +43,7 @@
 - バックアップには改ざんを見分ける印（DK から作った HMAC-SHA256）が付き、パスキーの一覧・外したパスキーの印・履歴まで守ります。書きかえられたファイルは取り込みません。ファイル名には、ファイルの SHA-256 を同じ鍵で印にした 10 文字が付きます。バックアップと開いた履歴（端末の名前・ブラウザ・日時）を残し、パソコンの Chrome・Edge では保存先を選べます（Version 2.00.010 から）。
 - 印の無いファイル（Version 2.00.009 まで）からは、開いた中身だけを使い、ファイルの外側の鍵の情報（パスキーの一覧・外した印）は使いません。印を消して前の版のふりをしたファイルで鍵の設定を変えられないように（Version 2.00.011 から）。
 - iPhone・iPad でも、共有の画面の「“ファイル”に保存」でバックアップの保存先を選べます（Version 2.01.001 から）。
+- 保存には更新番号が付き、別のタブの古い状態や、あとから終わった古い保存では上書きしません。保存は1つずつ順番に行い（タブをまたいでは Web Locks）、ロックの前に保存できなかった編集は鍵で暗号化して残します。読み込むファイルの計算回数（PBKDF2）は範囲を確かめます（Version 2.01.002 から）。
 - 読み込むファイルは、先に全体を確かめ、形がおかしければ何も足しません。中身はすべて文字として扱い、5MB までです（Version 2.00.004 から）。
 
 くわしくは [docs/how-it-works.md](docs/how-it-works.md) を見てください。
@@ -59,8 +60,8 @@
 
 | 版 | SHA-256（snippet-book.html） |
 |---|---|
+| Version 2.01.002 | `53f422bef52e6a0bdb0f0d474eff0fc5f3a6194c1795891ef3c5b230dbcd93d4` |
 | Version 2.01.001 | `33fcac266c2a6d96ea9d8937e0f75412b024db110d689dfa28e35727f506c603` |
-| Version 2.00.011 | `be887bbc717a70680943148f723882479db4ea97066167df4df47efb2f2d63d4` |
 | Version 2.00.003 | `dae7fd31aedfdac2fd78f1da7458122d4157b29d4264ca21579e49d3cd37cd39` |
 
 アイコン・フォントなどほかのファイルの値は [`app/SHA256SUMS`](app/SHA256SUMS) にあります。
@@ -86,7 +87,7 @@ Invoke-WebRequest https://snippet.eiwa-up.jp/ -OutFile snippet-book.html; Get-Fi
 | `app/` | サイトで配っているファイルそのもの（HTML・アイコン・manifest・`fonts/`）と `SHA256SUMS` |
 | `deploy/snippet.conf` | サイトの nginx の設定（守りのヘッダーと CSP）。verify が、公開中のサイトの CSP と同じか確かめます |
 | `tests/test-core.mjs` | 鍵のしくみのテスト（HTML の中の `/*<core>` 〜 `/*</core>*/` を切り出して試します） |
-| `tests/test-v2101.mjs` | 自動パスワードの強さ・外のサイトを読まないこと・CSP のハッシュが HTML と合うこと・取り込みの検査・自動ロックとクリップボード・ロックで画面に中身を残さないこと・途中でロックしたら何もしないこと（鍵の作業も）・データと鍵を1回で書くこと・パスキーの一覧を合わせること・改ざんを見分ける印と履歴と保存先を選ぶことのテスト |
+| `tests/test-v2102.mjs` | 自動パスワードの強さ・外のサイトを読まないこと・CSP のハッシュが HTML と合うこと・取り込みの検査・自動ロックとクリップボード・ロックで画面に中身を残さないこと・途中でロックしたら何もしないこと（鍵の作業も）・データと鍵を1回で書くこと・パスキーの一覧を合わせること・改ざんを見分ける印と履歴と保存先を選ぶことのテスト |
 | `docs/` | マニュアル（PDF と元の HTML）・しくみの説明 |
 | `.github/workflows/verify.yml` | テストと、サイトとの照らし合わせ（1 時間に 1 回） |
 
@@ -96,7 +97,7 @@ Node.js 18 以降で：
 
 ```bash
 node tests/test-core.mjs
-node tests/test-v2101.mjs
+node tests/test-v2102.mjs
 ```
 
 ## 問題を見つけたら

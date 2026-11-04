@@ -545,7 +545,7 @@
      ファイル本体を変更したら版番号を上げ、公式サイトの
      「バージョン ⇄ ハッシュ」対応表も更新すること。
      ========================================================= */
-  const APP_VERSION = 'V2.01.005';
+  const APP_VERSION = 'V2.01.006';
 
   /* =========================================================
      Storage keys
@@ -811,6 +811,9 @@
   let lockingNow = false;
   const LOCK_SAVE_WAIT_MS = 5000;   // ロックのときに保存を待ついちばん長い時間。過ぎたら編集を暗号化して残し、鍵を消す
   const LOCK_STASH_WAIT_MS = 2000;  // V2.01.005〜 そのあと、残す（暗号化して書く）のを待ついちばん長い時間。過ぎても鍵は消す
+  // V2.01.006〜 ロックの前の変更を保存も退避もできなかったときに、ロック画面に出す知らせ（本文は出さない）
+  let lockNotice = '';
+  const LOST_MSG = 'ロックの前の変更を保護できませんでした（この端末への保存も、暗号化して残すこともできませんでした）。開いたら、最後の変更が入っているか確かめてください。';
   let staleTab = false;     // V2.01.002〜 ほかのタブで中身か鍵が変わった（このタブは保存しない）
   let viewOnly = false;   // 読み込むだけ（保存しない）モード
   let pendingRestore = null;  // 起動時に取り込む上書きバックアップ（{data} 復号済み）
@@ -1155,7 +1158,7 @@
 
   function showUnlock() {
     showCard(unlockCard);
-    $('unlockErr').textContent = '';
+    $('unlockErr').textContent = lockNotice;   // V2.01.006〜 保護できなかった変更の知らせ（ふだんは空）
     $('rkField').value = '';
     const pks = passkeyWraps(vault);
     const canPk = passkeyBase && pks.length > 0;
@@ -1489,18 +1492,28 @@
      中身を隠すこと（ロックする）と、編集を失わないことを両立する。この端末に書けないときは、このタブの中だけに残す */
   const UNSAVED_KEY = 'snippet-book:v5:unsaved';
   let unsavedStash = null;
+  /* V2.01.006〜 退避の世代番号。退避を始めるたび・退避を消すたびに 1 ふやす。
+     待つのを打ち切った古い退避があとで終わっても、自分より新しい世代があれば、タブの中にも端末にも置かない（チャッピーさんの再点検） */
+  let stashGen = 0;
   /* V2.01.005〜 暗号化できたら、まずこのタブの中（unsavedStash）に置いて「残した」にしてから、端末に書く。
-     端末への書きこみが返ってこなくても、ロックは待ち時間の上限で鍵を消せる（チャッピーさんの再点検） */
+     端末への書きこみが返ってこなくても、ロックは待ち時間の上限で鍵を消せる（チャッピーさんの再点検）
+     V2.01.006〜 暗号化できたときだけ「残した」（savedSeq を進める）。できなければ false を返す（前の版は失敗しても保存済みにした） */
   async function stashUnsaved() {
+    const gen = ++stashGen;
     const vid = vault.vaultId, key = cryptoKey, seq = editSeq;   // 待つ前に写す（ロックで鍵が消えても、この1回は同じ鍵で）
     let st = null;
     try { st = { vaultId: vid, at: Date.now(), ...(await encryptJSON(key, book)) }; } catch {}
+    if (!st) return false;
+    if (gen !== stashGen) return true;   // もっと新しい退避（か消した後）がある：古い中身で置きかえない
     if (seq > savedSeq) savedSeq = seq;   // 残したので、ロックのあとにもう一度は残さない
-    if (!st) return;
     unsavedStash = st;
-    try { await store.set(UNSAVED_KEY, JSON.stringify(st)); } catch {}
+    try { await store.set(UNSAVED_KEY, JSON.stringify(st)); } catch {}   // 書く直前に世代を確かめた（この行の前に await は無い）
+    if (gen !== stashGen) {   // 書いている間に新しい退避か消去があった：書き終わる順が入れかわっても、端末には新しいほうを残す
+      try { if (unsavedStash) await store.set(UNSAVED_KEY, JSON.stringify(unsavedStash)); else await store.delete(UNSAVED_KEY); } catch {}
+    }
+    return true;
   }
-  function clearUnsaved() { unsavedStash = null; try { store.delete(UNSAVED_KEY).catch(() => {}); } catch {} }
+  function clearUnsaved() { stashGen++; unsavedStash = null; try { store.delete(UNSAVED_KEY).catch(() => {}); } catch {} }
   async function offerUnsaved() {
     const s = unsavedStash || await loadJSON(UNSAVED_KEY);
     if (!s || !vault || !cryptoKey || s.vaultId !== vault.vaultId || viewOnly) return;
@@ -1817,6 +1830,7 @@
 
   function enterApp() {
     appEl.inert = false;   // V2.01.003〜 ロックのときに止めた操作をもどす
+    lockNotice = '';       // V2.01.006〜 開いたら知らせを消す
     if (!HAS_LOCKS && !viewOnly) setTimeout(() => setStatus(NO_LOCKS_MSG, true), 0);
     lockScreen.classList.add('hidden');
     appEl.classList.remove('hidden');
@@ -1896,7 +1910,10 @@
         await within(persistChain);
         if (hasUnsaved() && Date.now() < until) await within(persist());
         // V2.01.005〜 残すのも LOCK_STASH_WAIT_MS まで。暗号化した中身はタブの中にあるので、書き終わりを待たずに鍵を消してよい
-        if (hasUnsaved()) await Promise.race([stashUnsaved().catch(() => {}), new Promise(r => setTimeout(r, LOCK_STASH_WAIT_MS))]);
+        if (hasUnsaved()) await Promise.race([stashUnsaved().catch(() => false), new Promise(r => setTimeout(r, LOCK_STASH_WAIT_MS))]);
+        // V2.01.006〜 それでも最新の編集を保存も退避もできていなければ、ロック画面で知らせる
+        if (hasUnsaved()) lockNotice = LOST_MSG;
+        savedSeq = editSeq;   // 鍵を消すので、この編集はもう扱えない（開き直したあとに「保存できていない」と数えない）
       }
       staleTab = false;
       cryptoKey = null;

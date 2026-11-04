@@ -7,8 +7,8 @@
 よく使う文章・コマンド・ID やパスワードを登録しておき、クリック（スマホはタップ）だけでコピーできる道具です。
 
 - 使う：**https://snippet.eiwa-up.jp/**
-- マニュアル：[docs/manual-V2.01.006.pdf](docs/manual-V2.01.006.pdf)
-- 現行版：**Version 2.01.006**
+- マニュアル：[docs/manual-V2.01.007.pdf](docs/manual-V2.01.007.pdf)
+- 現行版：**Version 2.01.007**
 
 > A small, single-file web app to store and copy text snippets and credentials. Everything stays in your browser, encrypted with a random key that is wrapped by a passkey (WebAuthn PRF) and by a recovery key. Your data is never sent anywhere, and the page loads nothing from other sites.
 
@@ -45,7 +45,7 @@
 - iPhone・iPad でも、共有の画面の「“ファイル”に保存」でバックアップの保存先を選べます（Version 2.01.001 から）。
 - 保存には更新番号が付き、別のタブの古い状態や、あとから終わった古い保存では上書きしません。保存は1つずつ順番に行い（タブをまたいでは Web Locks）、ロックの前に保存できなかった編集は鍵で暗号化して残します。読み込むファイルの計算回数（PBKDF2）は範囲を確かめます（Version 2.01.002 から）。
 - 編集には番号が付き、どの番号まで保存できたかで比べます（保存の途中の編集を取りこぼさない）。Web Locks の無いブラウザでは書きこみません（Version 2.01.003 から）。
-- ロックを押すと、保存を待つ前に画面の中身を消してロック画面にし、そのあとで保存して鍵を消します。保存を待つのは 5 秒までで、過ぎたら編集を鍵で暗号化して残します（Version 2.01.004 から）。残すのにも 2 秒の上限があり、ロックは長くても 7 秒で必ず鍵を消します（Version 2.01.005 から）。退避には世代番号があり、遅れて終わった古い退避で新しい退避を上書きしません。保存も退避もできなかったときは、開く画面で知らせます（Version 2.01.006 から）。
+- ロックを押すと、保存を待つ前に画面の中身を消してロック画面にし、そのあとで保存して鍵を消します。保存を待つのは 5 秒までで、過ぎたら編集を鍵で暗号化して残します（Version 2.01.004 から）。残すのにも 2 秒の上限があり、ロックは長くても 7 秒で必ず鍵を消します（Version 2.01.005 から）。退避には世代番号があり、遅れて終わった古い退避で新しい退避を上書きしません。保存も退避もできなかったときは、開く画面で知らせます（Version 2.01.006 から）。退避を書く・消すのは1列の順番待ちで行い、終わる順が入れかわっても、端末には最新の退避が残ります（Version 2.01.007 から）。
 - 読み込むファイルは、先に全体を確かめ、形がおかしければ何も足しません。中身はすべて文字として扱い、5MB までです（Version 2.00.004 から）。
 
 くわしくは [docs/how-it-works.md](docs/how-it-works.md) を見てください。
@@ -62,8 +62,8 @@
 
 | 版 | SHA-256（snippet-book.html） |
 |---|---|
+| Version 2.01.007 | `c192e041c3fc075c60d68c15a01bafe0d1fe1744b2be74af2ac6bec9fb31ff12` |
 | Version 2.01.006 | `02900048e4a84d351569cd343ff760cd0c3b1201f94be8bcfcaffcce67667471` |
-| Version 2.01.005 | `b2cbcb5f1568448bc90ea80cebaf91677342b17bb638930b7212976c0cb2b20b` |
 | Version 2.00.003 | `dae7fd31aedfdac2fd78f1da7458122d4157b29d4264ca21579e49d3cd37cd39` |
 
 アイコン・フォントなどほかのファイルの値は [`app/SHA256SUMS`](app/SHA256SUMS) にあります。
@@ -89,7 +89,7 @@ Invoke-WebRequest https://snippet.eiwa-up.jp/ -OutFile snippet-book.html; Get-Fi
 | `app/` | サイトで配っているファイルそのもの（HTML・アイコン・manifest・`fonts/`）と `SHA256SUMS` |
 | `deploy/snippet.conf` | サイトの nginx の設定（守りのヘッダーと CSP）。verify が、公開中のサイトの CSP と同じか確かめます |
 | `tests/test-core.mjs` | 鍵のしくみのテスト（HTML の中の `/*<core>` 〜 `/*</core>*/` を切り出して試します） |
-| `tests/test-v2106.mjs` | 自動パスワードの強さ・外のサイトを読まないこと・CSP のハッシュが HTML と合うこと・取り込みの検査・自動ロックとクリップボード・ロックで画面に中身を残さないこと・途中でロックしたら何もしないこと（鍵の作業も）・データと鍵を1回で書くこと・パスキーの一覧を合わせること・改ざんを見分ける印と履歴と保存先を選ぶことのテスト |
+| `tests/test-v2107.mjs` | 自動パスワードの強さ・外のサイトを読まないこと・CSP のハッシュが HTML と合うこと・取り込みの検査・自動ロックとクリップボード・ロックで画面に中身を残さないこと・途中でロックしたら何もしないこと（鍵の作業も）・データと鍵を1回で書くこと・パスキーの一覧を合わせること・改ざんを見分ける印と履歴と保存先を選ぶことのテスト |
 | `docs/` | マニュアル（PDF と元の HTML）・しくみの説明 |
 | `.github/workflows/verify.yml` | テストと、サイトとの照らし合わせ（1 時間に 1 回） |
 
@@ -99,7 +99,7 @@ Node.js 18 以降で：
 
 ```bash
 node tests/test-core.mjs
-node tests/test-v2106.mjs
+node tests/test-v2107.mjs
 ```
 
 ## 問題を見つけたら

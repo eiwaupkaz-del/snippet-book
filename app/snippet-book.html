@@ -545,7 +545,7 @@
      ファイル本体を変更したら版番号を上げ、公式サイトの
      「バージョン ⇄ ハッシュ」対応表も更新すること。
      ========================================================= */
-  const APP_VERSION = 'V2.01.006';
+  const APP_VERSION = 'V2.01.007';
 
   /* =========================================================
      Storage keys
@@ -1495,6 +1495,22 @@
   /* V2.01.006〜 退避の世代番号。退避を始めるたび・退避を消すたびに 1 ふやす。
      待つのを打ち切った古い退避があとで終わっても、自分より新しい世代があれば、タブの中にも端末にも置かない（チャッピーさんの再点検） */
   let stashGen = 0;
+  /* V2.01.007〜 端末の退避（書く・消す）は、この1列だけで行う（チャッピーさんの再点検）。
+     順番が来たら、そのときのタブの中の状態（unsavedStash）をそのまま書く（無ければ消す）。前の操作が終わるまで次は始めない。
+     待っている操作がすでにあれば重ねない（その操作が順番の来たときに最新を書く）。こうすると、どんな順で終わっても、端末に最後に残るのは最新の状態
+     （V2.01.006 は、書く・書き直す・消すが別々に動き、保存先が非同期だと、終わる順が入れかわって古い退避が残ったり、新しい退避が消えたりした） */
+  let stashIO = Promise.resolve(), stashIOWaiting = false;
+  function syncStash() {
+    if (stashIOWaiting) return stashIO;
+    stashIOWaiting = true;
+    const run = async () => {
+      stashIOWaiting = false;   // ここから先の変化は、次の順番で書く
+      const cur = unsavedStash;
+      try { if (cur) await store.set(UNSAVED_KEY, JSON.stringify(cur)); else await store.delete(UNSAVED_KEY); } catch {}
+    };
+    stashIO = stashIO.then(run, run);
+    return stashIO;
+  }
   /* V2.01.005〜 暗号化できたら、まずこのタブの中（unsavedStash）に置いて「残した」にしてから、端末に書く。
      端末への書きこみが返ってこなくても、ロックは待ち時間の上限で鍵を消せる（チャッピーさんの再点検）
      V2.01.006〜 暗号化できたときだけ「残した」（savedSeq を進める）。できなければ false を返す（前の版は失敗しても保存済みにした） */
@@ -1507,13 +1523,10 @@
     if (gen !== stashGen) return true;   // もっと新しい退避（か消した後）がある：古い中身で置きかえない
     if (seq > savedSeq) savedSeq = seq;   // 残したので、ロックのあとにもう一度は残さない
     unsavedStash = st;
-    try { await store.set(UNSAVED_KEY, JSON.stringify(st)); } catch {}   // 書く直前に世代を確かめた（この行の前に await は無い）
-    if (gen !== stashGen) {   // 書いている間に新しい退避か消去があった：書き終わる順が入れかわっても、端末には新しいほうを残す
-      try { if (unsavedStash) await store.set(UNSAVED_KEY, JSON.stringify(unsavedStash)); else await store.delete(UNSAVED_KEY); } catch {}
-    }
+    await syncStash();   // V2.01.007〜 端末へは1列で（ロックは、これを待たずに上限の時間で鍵を消せる）
     return true;
   }
-  function clearUnsaved() { stashGen++; unsavedStash = null; try { store.delete(UNSAVED_KEY).catch(() => {}); } catch {} }
+  function clearUnsaved() { stashGen++; unsavedStash = null; syncStash(); }   // V2.01.007〜 消すのも同じ1列で
   async function offerUnsaved() {
     const s = unsavedStash || await loadJSON(UNSAVED_KEY);
     if (!s || !vault || !cryptoKey || s.vaultId !== vault.vaultId || viewOnly) return;

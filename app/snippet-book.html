@@ -241,6 +241,7 @@
 <div class="lock" id="lockScreen">
   <h1>スニペット帳</h1>
   <p class="subtitle">SNIPPET INDEX · LOCKED · <span id="verLock"></span></p>
+  <p class="hint hidden" id="lockingMsg">🔒 ロックしています…（保存が終わるまで少しお待ちください）</p>
 
   <div class="ios-tip hidden" id="iosTip">
     <strong>📱 iPhone / iPad をお使いの方へ</strong>
@@ -544,7 +545,7 @@
      ファイル本体を変更したら版番号を上げ、公式サイトの
      「バージョン ⇄ ハッシュ」対応表も更新すること。
      ========================================================= */
-  const APP_VERSION = 'V2.01.003';
+  const APP_VERSION = 'V2.01.004';
 
   /* =========================================================
      Storage keys
@@ -806,6 +807,9 @@
   let lockEpoch = 0;
   const lockedSince = ep => ep !== lockEpoch;
   let savePending = false;  // V2.00.004〜 保存待ちがあるか（ロックの前に書く）
+  // V2.01.004〜 ロックの途中（画面はもう隠し、保存の終わりを待っている間）。鍵はまだあるが、画面には何も出さない
+  let lockingNow = false;
+  const LOCK_SAVE_WAIT_MS = 5000;   // ロックのときに保存を待ついちばん長い時間。過ぎたら編集を暗号化して残し、鍵を消す
   let staleTab = false;     // V2.01.002〜 ほかのタブで中身か鍵が変わった（このタブは保存しない）
   let viewOnly = false;   // 読み込むだけ（保存しない）モード
   let pendingRestore = null;  // 起動時に取り込む上書きバックアップ（{data} 復号済み）
@@ -1514,7 +1518,7 @@
   window.addEventListener('storage', e => {
     if (e.key !== META5_KEY) return;
     let s = null; try { s = e.newValue ? JSON.parse(e.newValue) : null; } catch {}
-    if (appEl.classList.contains('hidden') || !cryptoKey) {   // ロック画面：読み直すだけ
+    if ((appEl.classList.contains('hidden') && !lockingNow) || !cryptoKey) {   // ロック画面：読み直すだけ（V2.01.004〜 ロックの途中は、保存を守るため下で比べる）
       if (s && s.version === 5 && !pendingRestore && !$('unlockCard').classList.contains('hidden')) { vault = s; showUnlock(); }
       return;
     }
@@ -1525,6 +1529,7 @@
       return;
     }
     staleTab = true;
+    if (lockingNow) return;   // V2.01.004〜 ロックの途中は画面に出さない（保存しないで暗号化して残す）
     setStatus(STALE_MSG, true);
     showToast('ほかのタブで変更されました。ロックして開き直してください', true);
   });
@@ -1855,38 +1860,56 @@
     save();
   });
   document.getElementById('dataName').addEventListener('blur', e => {
+    if (viewOnly || lockingNow) return;   // V2.01.004〜 ロックで欄を空にしたときに「snippet-book」へ戻して保存しない
     if (!e.target.value.trim()) { e.target.value = 'snippet-book'; book.name = 'snippet-book'; save(); }
   });
 
   async function lockNow() {
     lockEpoch++;   // V2.00.006〜 いま動いている処理に「ロックされた」と知らせる（保存待ちを書くより先に）
-    // V2.00.004〜 保存待ちがあれば、鍵を消す前に書いておく（自動ロックで編集が消えないように）
-    // V2.01.002〜 動いている保存も待つ。それでも保存できなければ、編集中の内容を鍵で暗号化して残してからロックする（次に開いたときに戻せる）
-    // V2.01.003〜 ロックを始めたら画面の操作を止め（ロックの途中の編集を入れない）、最新の編集番号まで保存できたかを比べる
-    appEl.inert = true;
-    if (cryptoKey && !viewOnly) {
-      if (savePending) { clearTimeout(saveTimer); savePending = false; }
-      try { await persistChain; } catch {}
-      if (hasUnsaved()) { try { await persist(); } catch {} }
-      if (hasUnsaved()) await stashUnsaved();
-    }
-    staleTab = false;
-    cryptoKey = null;
-    if (dkRaw) dkRaw.fill(0);
-    dkRaw = null;
-    wipeScreen();
-    appEl.classList.add('hidden');
-    lockScreen.classList.remove('hidden');
-    if (viewOnly) {
-      // 閲覧専用: 中身を破棄して閲覧カードへ戻る
-      book = { sets: [], active: 0 };
-      viewOnly = false;
-      showCard(document.getElementById('viewCard'));
-      document.getElementById('viewErr').textContent = '';
-    } else {
-      book = { sets: [], active: 0, name: 'snippet-book' };
-      clearRestore();
-      boot();
+    if (lockingNow) return;   // V2.01.004〜 もうロックの途中なら、そちらに任せる
+    lockingNow = true;
+    try {
+      // V2.01.004〜 まず画面を隠す（チャッピーさんの再点検）。V2.01.003 は保存を待ってから画面を消したので、
+      // 保存や順番待ちが長引くと、操作は止まっても本文が見えたままだった。
+      // 編集はすべて入力のたびに book に入っているので、画面を先に消しても保存する中身は変わらない。
+      const ae = document.activeElement; if (ae && ae !== document.body && ae.blur) ae.blur();   // 入力中の欄は、値があるうちに離す
+      appEl.inert = true;   // V2.01.003〜 操作を止める
+      wipeScreen();
+      appEl.classList.add('hidden');
+      showCard(null);
+      $('lockingMsg').classList.remove('hidden');
+      lockScreen.classList.remove('hidden');
+      // V2.00.004〜 保存待ちがあれば、鍵を消す前に書いておく（自動ロックで編集が消えないように）
+      // V2.01.002〜 動いている保存も待つ。それでも保存できなければ、編集中の内容を鍵で暗号化して残してからロックする（次に開いたときに戻せる）
+      // V2.01.003〜 最新の編集番号まで保存できたかを比べる
+      // V2.01.004〜 待つのは LOCK_SAVE_WAIT_MS まで。過ぎたら暗号化して残し、鍵を消す（鍵がメモリに残る時間を短く）
+      if (cryptoKey && !viewOnly) {
+        if (savePending) { clearTimeout(saveTimer); savePending = false; }
+        const until = Date.now() + LOCK_SAVE_WAIT_MS;
+        const within = p => Promise.race([Promise.resolve(p).catch(() => {}), new Promise(r => setTimeout(r, Math.max(0, until - Date.now())))]);
+        await within(persistChain);
+        if (hasUnsaved() && Date.now() < until) await within(persist());
+        if (hasUnsaved()) await stashUnsaved();
+      }
+      staleTab = false;
+      cryptoKey = null;
+      if (dkRaw) dkRaw.fill(0);
+      dkRaw = null;
+      wipeScreen();   // 待っている間に何か出ていても、もう一度消す
+      $('lockingMsg').classList.add('hidden');
+      if (viewOnly) {
+        // 閲覧専用: 中身を破棄して閲覧カードへ戻る
+        book = { sets: [], active: 0 };
+        viewOnly = false;
+        showCard(document.getElementById('viewCard'));
+        document.getElementById('viewErr').textContent = '';
+      } else {
+        book = { sets: [], active: 0, name: 'snippet-book' };
+        clearRestore();
+        boot();
+      }
+    } finally {
+      lockingNow = false;
     }
   }
   document.getElementById('lockNow').addEventListener('click', () => lockNow());
@@ -1895,6 +1918,7 @@
      鍵を消しても、カードの部品・編集欄・ダイアログに平文が残っていると、端末を触れる人が開発者ツールなどで読めるため。
      （クリップボードを空にする予定は、ロックのあとも残す） */
   function wipeScreen() {
+    const ae = document.activeElement; if (ae && ae !== document.body && ae.blur) ae.blur();   // V2.01.004〜 値を消す前に離す
     if (rkCloser) rkCloser(false);
     if (openCloser) openCloser(null);
     if (shareCloser) shareCloser({ how:'cancelled' });   // V2.01.001〜 保存先を選ぶ画面も閉じる（保存しない）
@@ -1912,7 +1936,6 @@
     $('status').textContent = ''; $('status').classList.remove('error');
     clearTimeout(toastTimer); toast.classList.remove('show'); toast.textContent = '';
     peeking.clear(); Object.keys(peekTimers).forEach(k => { clearTimeout(peekTimers[k]); delete peekTimers[k]; });
-    const ae = document.activeElement; if (ae && ae !== document.body && ae.blur) ae.blur();
   }
 
   /* V2.00.004〜 自動ロック：開いている間、何もしない時間が決めた分を超えたらロックする。

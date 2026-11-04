@@ -545,7 +545,7 @@
      ファイル本体を変更したら版番号を上げ、公式サイトの
      「バージョン ⇄ ハッシュ」対応表も更新すること。
      ========================================================= */
-  const APP_VERSION = 'V2.01.004';
+  const APP_VERSION = 'V2.01.005';
 
   /* =========================================================
      Storage keys
@@ -810,6 +810,7 @@
   // V2.01.004〜 ロックの途中（画面はもう隠し、保存の終わりを待っている間）。鍵はまだあるが、画面には何も出さない
   let lockingNow = false;
   const LOCK_SAVE_WAIT_MS = 5000;   // ロックのときに保存を待ついちばん長い時間。過ぎたら編集を暗号化して残し、鍵を消す
+  const LOCK_STASH_WAIT_MS = 2000;  // V2.01.005〜 そのあと、残す（暗号化して書く）のを待ついちばん長い時間。過ぎても鍵は消す
   let staleTab = false;     // V2.01.002〜 ほかのタブで中身か鍵が変わった（このタブは保存しない）
   let viewOnly = false;   // 読み込むだけ（保存しない）モード
   let pendingRestore = null;  // 起動時に取り込む上書きバックアップ（{data} 復号済み）
@@ -1488,12 +1489,16 @@
      中身を隠すこと（ロックする）と、編集を失わないことを両立する。この端末に書けないときは、このタブの中だけに残す */
   const UNSAVED_KEY = 'snippet-book:v5:unsaved';
   let unsavedStash = null;
+  /* V2.01.005〜 暗号化できたら、まずこのタブの中（unsavedStash）に置いて「残した」にしてから、端末に書く。
+     端末への書きこみが返ってこなくても、ロックは待ち時間の上限で鍵を消せる（チャッピーさんの再点検） */
   async function stashUnsaved() {
-    try {
-      unsavedStash = { vaultId: vault.vaultId, at: Date.now(), ...(await encryptJSON(cryptoKey, book)) };
-      try { await store.set(UNSAVED_KEY, JSON.stringify(unsavedStash)); } catch {}
-    } catch {}
-    savedSeq = editSeq;   // 残したので、ロックのあとにもう一度は残さない
+    const vid = vault.vaultId, key = cryptoKey, seq = editSeq;   // 待つ前に写す（ロックで鍵が消えても、この1回は同じ鍵で）
+    let st = null;
+    try { st = { vaultId: vid, at: Date.now(), ...(await encryptJSON(key, book)) }; } catch {}
+    if (seq > savedSeq) savedSeq = seq;   // 残したので、ロックのあとにもう一度は残さない
+    if (!st) return;
+    unsavedStash = st;
+    try { await store.set(UNSAVED_KEY, JSON.stringify(st)); } catch {}
   }
   function clearUnsaved() { unsavedStash = null; try { store.delete(UNSAVED_KEY).catch(() => {}); } catch {} }
   async function offerUnsaved() {
@@ -1883,13 +1888,15 @@
       // V2.01.002〜 動いている保存も待つ。それでも保存できなければ、編集中の内容を鍵で暗号化して残してからロックする（次に開いたときに戻せる）
       // V2.01.003〜 最新の編集番号まで保存できたかを比べる
       // V2.01.004〜 待つのは LOCK_SAVE_WAIT_MS まで。過ぎたら暗号化して残し、鍵を消す（鍵がメモリに残る時間を短く）
+      // V2.01.005〜 残すのも上限つき。ロックは長くても LOCK_SAVE_WAIT_MS ＋ LOCK_STASH_WAIT_MS（7秒）で必ず鍵を消す
       if (cryptoKey && !viewOnly) {
         if (savePending) { clearTimeout(saveTimer); savePending = false; }
         const until = Date.now() + LOCK_SAVE_WAIT_MS;
         const within = p => Promise.race([Promise.resolve(p).catch(() => {}), new Promise(r => setTimeout(r, Math.max(0, until - Date.now())))]);
         await within(persistChain);
         if (hasUnsaved() && Date.now() < until) await within(persist());
-        if (hasUnsaved()) await stashUnsaved();
+        // V2.01.005〜 残すのも LOCK_STASH_WAIT_MS まで。暗号化した中身はタブの中にあるので、書き終わりを待たずに鍵を消してよい
+        if (hasUnsaved()) await Promise.race([stashUnsaved().catch(() => {}), new Promise(r => setTimeout(r, LOCK_STASH_WAIT_MS))]);
       }
       staleTab = false;
       cryptoKey = null;

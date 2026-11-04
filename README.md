@@ -2,6 +2,8 @@
 
 # スニペット帳（snippet-book）
 
+**日本語** | [English](README.en.md)
+
 [![verify](https://github.com/eiwaupkaz-del/snippet-book/actions/workflows/verify.yml/badge.svg)](https://github.com/eiwaupkaz-del/snippet-book/actions/workflows/verify.yml)
 
 よく使う文章・コマンド・ID やパスワードを登録しておき、クリック（スマホはタップ）だけでコピーできる道具です。
@@ -10,7 +12,7 @@
 - マニュアル：[docs/manual-V2.01.011.pdf](docs/manual-V2.01.011.pdf)
 - 現行版：**Version 2.01.011**
 
-> A small, single-file web app to store and copy text snippets and credentials. Everything stays in your browser, encrypted with a random key that is wrapped by a passkey (WebAuthn PRF) and by a recovery key. Your data is never sent anywhere, and the page loads nothing from other sites.
+> A small, single-file web app to store and copy text snippets and credentials. Everything stays in your browser, encrypted with a random key that is wrapped by a passkey (WebAuthn PRF) and by a recovery key. There is no mechanism that sends your entries anywhere, and the page loads nothing from other sites. **English: [README.en.md](README.en.md)**
 
 ---
 

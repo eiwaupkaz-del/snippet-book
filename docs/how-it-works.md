@@ -1,5 +1,7 @@
 # スニペット帳の守り方のしくみ（Version 2）
 
+**日本語** | [English](how-it-works.en.md)
+
 この文書は、`app/snippet-book.html` の中の鍵と暗号のしくみを説明します。コードでは `/*<core>` 〜 `/*</core>*/` の部分と、その下の「Passkey (WebAuthn PRF)」の部分にあたります。
 
 ## 1. 使っているもの

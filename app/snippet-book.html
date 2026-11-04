@@ -545,7 +545,7 @@
      ファイル本体を変更したら版番号を上げ、公式サイトの
      「バージョン ⇄ ハッシュ」対応表も更新すること。
      ========================================================= */
-  const APP_VERSION = 'V2.01.010';
+  const APP_VERSION = 'V2.01.011';
 
   /* =========================================================
      Storage keys
@@ -1557,13 +1557,18 @@
       stashIOWaiting = false;   // ここから先の変化は、次の順番で書く
       const cur = unsavedStash, drop = stashDropTarget;
       stashDropTarget = null;
+      /* V2.01.011〜 Web Locks が無いブラウザ（古いブラウザ）では、全タブ共通の順番待ちができないので、
+         退避は端末に書かず、このタブの中だけに残す（タブを閉じると消える）。そのブラウザでは金庫にも書かない（V2.01.003〜）。
+         端末から消すのは、リセット・別の金庫の退避の「すべて消す」ときだけ（チャッピーさんの再点検） */
+      const canShare = !!STASH_LOCKS;
       try {
         const st = await loadJSON(UNSAVED_KEY);
         if (cur) {
+          if (!canShare) return;
           // ほかのタブが残した、もっと新しい退避は上書きしない（こちらの退避はこのタブの中に残る）
           if (st && !sameStash(st, cur) && st.tab !== cur.tab && stashNewer(st, cur)) return;
           await store.set(UNSAVED_KEY, JSON.stringify(cur)); stashWritten.add(cur);
-        } else if (st && (drop === null || supersededBy(st, drop))) {
+        } else if (st && (drop === null || (canShare && supersededBy(st, drop)))) {
           await store.delete(UNSAVED_KEY);   // 消してよい退避だけ（ほかのタブの別の退避は残す）
         }
       } catch {}

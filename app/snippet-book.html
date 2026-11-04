@@ -545,7 +545,7 @@
      ファイル本体を変更したら版番号を上げ、公式サイトの
      「バージョン ⇄ ハッシュ」対応表も更新すること。
      ========================================================= */
-  const APP_VERSION = 'V2.01.009';
+  const APP_VERSION = 'V2.01.010';
 
   /* =========================================================
      Storage keys
@@ -1534,24 +1534,40 @@
      待っている操作がすでにあれば重ねない（その操作が順番の来たときに最新を書く）。こうすると、どんな順で終わっても、端末に最後に残るのは最新の状態
      （V2.01.006 は、書く・書き直す・消すが別々に動き、保存先が非同期だと、終わる順が入れかわって古い退避が残ったり、新しい退避が消えたりした） */
   let stashIO = Promise.resolve(), stashIOWaiting = false;
-  let stashDropUpTo = Infinity;   // V2.01.009〜 端末の退避を消すとき、この時刻（at）より新しい退避は消さない
   const stashWritten = new WeakSet();   // V2.01.008〜 端末に書けた退避（端末で消えていたら、別のタブで戻したか捨てた）
+  /* V2.01.010〜 退避の見分け（チャッピーさんの再点検）。
+     - 退避そのものは、暗号文 ct で見分ける（暗号化のたびに IV がでたらめなので、同じ ct は同じ退避）
+     - 新しい・古いは、同じタブの退避なら、そのタブの中の番号 seq で比べる（時計に頼らない）。ちがうタブなら時刻 at で比べ、同じ時刻ならこのタブのもの（メモリ）を新しいとする
+     - 消すのは「戻した・捨てたその退避」と「同じタブでそれより前の退避」だけ（ほかのタブの退避は、時刻が古くても消さない。次に開いたときに聞く） */
+  const STASH_TAB = (() => { const b = new Uint8Array(8); crypto.getRandomValues(b); return [...b].map(x => x.toString(16).padStart(2, '0')).join(''); })();
+  let stashTabSeq = 0;
+  const sameStash = (a, b) => !!(a && b && typeof a.ct === 'string' && a.ct === b.ct);
+  // タブの印が無い退避（V2.01.009 までの形）は、時刻がそれより古ければ「前の退避」とみなす
+  const supersededBy = (a, b) => !!(a && b && (sameStash(a, b) || (a.tab ? a.tab === b.tab && Number(a.seq) <= Number(b.seq) : Number(a.at) <= Number(b.at))));
+  const stashNewer = (a, b) => a.tab && a.tab === b.tab ? Number(a.seq) > Number(b.seq) : Number(a.at) > Number(b.at);
+  /* V2.01.010〜 端末の退避の「読む・確かめる・書く・消す」は、全部のタブで共通の順番待ち（Web Locks）の中で行う。
+     V2.01.009 はタブの中の順番だけだったので、「読んで確かめた」あと「消す」までの間に、ほかのタブが書いた新しい退避まで消せた */
+  const STASH_LOCKS = typeof navigator !== 'undefined' && navigator.locks && typeof navigator.locks.request === 'function' ? navigator.locks : null;
+  const withStashLock = fn => STASH_LOCKS ? STASH_LOCKS.request('snippet-book-unsaved', fn) : fn();
+  let stashDropTarget = null;   // V2.01.010〜 消す退避（null ならすべて）
   function syncStash() {
     if (stashIOWaiting) return stashIO;
     stashIOWaiting = true;
-    const run = async () => {
+    const run = () => withStashLock(async () => {
       stashIOWaiting = false;   // ここから先の変化は、次の順番で書く
-      const cur = unsavedStash, upTo = stashDropUpTo;
-      stashDropUpTo = Infinity;
+      const cur = unsavedStash, drop = stashDropTarget;
+      stashDropTarget = null;
       try {
-        if (cur) { await store.set(UNSAVED_KEY, JSON.stringify(cur)); stashWritten.add(cur); }
-        else {
-          // V2.01.009〜 戻した・捨てた退避より新しい退避（ほかのタブがあとで残したもの）は消さない
-          if (upTo !== Infinity) { const st = await loadJSON(UNSAVED_KEY); if (st && Number(st.at) > upTo) return; }
-          await store.delete(UNSAVED_KEY);
+        const st = await loadJSON(UNSAVED_KEY);
+        if (cur) {
+          // ほかのタブが残した、もっと新しい退避は上書きしない（こちらの退避はこのタブの中に残る）
+          if (st && !sameStash(st, cur) && st.tab !== cur.tab && stashNewer(st, cur)) return;
+          await store.set(UNSAVED_KEY, JSON.stringify(cur)); stashWritten.add(cur);
+        } else if (st && (drop === null || supersededBy(st, drop))) {
+          await store.delete(UNSAVED_KEY);   // 消してよい退避だけ（ほかのタブの別の退避は残す）
         }
       } catch {}
-    };
+    });
     stashIO = stashIO.then(run, run);
     return stashIO;
   }
@@ -1562,7 +1578,8 @@
     const gen = ++stashGen;
     const vid = vault.vaultId, key = cryptoKey, seq = editSeq;   // 待つ前に写す（ロックで鍵が消えても、この1回は同じ鍵で）
     let st = null;
-    try { st = { vaultId: vid, at: Date.now(), ...(await encryptJSON(key, book)) }; } catch {}
+    const tabSeq = ++stashTabSeq;   // V2.01.010〜 このタブの中の番号（時計に頼らない新旧）
+    try { st = { vaultId: vid, at: Date.now(), tab: STASH_TAB, seq: tabSeq, ...(await encryptJSON(key, book)) }; } catch {}
     if (!st) return false;
     if (gen !== stashGen) return true;   // もっと新しい退避（か消した後）がある：古い中身で置きかえない
     if (seq > savedSeq) savedSeq = seq;   // 残したので、ロックのあとにもう一度は残さない
@@ -1570,12 +1587,12 @@
     await syncStash();   // V2.01.007〜 端末へは1列で（ロックは、これを待たずに上限の時間で鍵を消せる）
     return true;
   }
-  /* V2.01.007〜 消すのも同じ1列で。V2.01.009〜 upTo を渡すと、その時刻（at）までの退避だけを消す（それより新しい退避は残す）。
+  /* V2.01.007〜 消すのも同じ1列で。V2.01.010〜 target を渡すと、その退避と、同じタブでそれより前の退避だけを消す。
      渡さなければ、すべて消す（リセット・別の金庫の退避） */
-  function clearUnsaved(upTo = Infinity) {
+  function clearUnsaved(target = null) {
     stashGen++;
-    if (!unsavedStash || !(Number(unsavedStash.at) > upTo)) unsavedStash = null;
-    stashDropUpTo = upTo;
+    if (!target || supersededBy(unsavedStash, target)) unsavedStash = null;
+    stashDropTarget = target;
     syncStash();
   }
   /* V2.01.008〜（自己点検 B・C）
@@ -1590,8 +1607,10 @@
     if (!vault || !cryptoKey || viewOnly) return;
     /* V2.01.009〜 端末とメモリの両方に退避があるときは、新しいほう（at が大きいほう）を出す（チャッピーさんの再点検：
        V2.01.008 は端末を先にしたので、端末に古い退避 A・メモリにだけ新しい退避 B（書けなかった）があると、A を戻して B まで消した） */
-    const mine = [stored, unsavedStash].filter(x => x && x.vaultId === vault.vaultId && Number.isFinite(Number(x.at)));
-    const s = mine.sort((p, q) => Number(q.at) - Number(p.at))[0];
+    // V2.01.010〜 メモリ（このタブ）を先に置き、はっきり新しいときだけ端末のものにする（同じ時刻ならこのタブのもの）
+    const mine = [unsavedStash, stored].filter(x => x && x.vaultId === vault.vaultId && Number.isFinite(Number(x.at)));
+    let s = mine[0];
+    for (const x of mine.slice(1)) if (!sameStash(x, s) && stashNewer(x, s)) s = x;
     if (!s) { if (stored || unsavedStash) clearUnsaved(); return; }   // 作り直す前の鍵（別の金庫の番号）の退避だけ：もう使えないので消す
     let content;
     try { content = normalize(await decryptJSON(cryptoKey, s)); } catch { return; }
@@ -1602,10 +1621,10 @@
       try { await persist(); }
       catch (e) { if (!lockedSince(ep)) setStatus('戻した変更を保存できませんでした：' + e.message, true); return; }
       if (lockedSince(ep) || hasUnsaved()) return;   // 保存できたと言えない → 退避は残す（次に開いたときにまた聞く）
-      clearUnsaved(Number(s.at));   // V2.01.009〜 戻したものとそれより古い退避だけを消す
+      clearUnsaved(s);   // V2.01.010〜 戻したその退避（と同じタブのそれより前の退避）だけを消す
       setStatus('保存できなかった変更を戻しました');
     } else if (!lockedSince(ep) && askConfirm('保存できなかった変更を捨てますか？\n\n「キャンセル」なら、次に開いたときにもう一度聞きます。')) {
-      clearUnsaved(Number(s.at));
+      clearUnsaved(s);
     }
   }
 

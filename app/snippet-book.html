@@ -545,7 +545,7 @@
      ファイル本体を変更したら版番号を上げ、公式サイトの
      「バージョン ⇄ ハッシュ」対応表も更新すること。
      ========================================================= */
-  const APP_VERSION = 'V2.01.008';
+  const APP_VERSION = 'V2.01.009';
 
   /* =========================================================
      Storage keys
@@ -811,16 +811,33 @@
   function dialogOverdue(since) {
     return !!prefs.autoLockMin && !appEl.classList.contains('hidden') && Date.now() - since >= prefs.autoLockMin * 60000;
   }
+  /* V2.01.009〜 時間切れは「キャンセル」とは別にする（チャッピーさんの再点検）。
+     V2.01.008 は時間切れで false / null を返したので、「キャンセル」を別の選び方に使うところ
+     （平文の書き出しの「パスワードを含めない」・全体の書き出しの「アプリの鍵で」など）が、ロックのあとにそのまま進んだ。
+     いまは、ロックを始めてから TIMEOUT_LOCK を投げ、呼んだ処理をそこで止める（どの呼び方でも先へ進まない） */
+  const TIMEOUT_LOCK = 'snippet-book:dialog-timeout-lock';
+  const timeoutLockError = () => Object.assign(new Error('何もしない時間が長かったのでロックしました'), { code: TIMEOUT_LOCK });
+  // 止めた処理の「できませんでした」などの知らせは出さず（1秒）、代わりにロックした理由だけを出す
+  let timeoutQuietUntil = 0;
+  function lockForTimeout() {
+    lockNow();
+    timeoutQuietUntil = Date.now() + 1000;
+    setTimeout(() => showToast('何もしない時間が長かったのでロックしました'), 1100);
+    return timeoutLockError();
+  }
   function askConfirm(msg) {
     const since = lastActivity, r = window.confirm(msg);
-    if (dialogOverdue(since)) { lockNow(); return false; }
+    if (dialogOverdue(since)) throw lockForTimeout();
     return r;
   }
   function askPrompt(msg, def) {
     const since = lastActivity, r = window.prompt(msg, def);
-    if (dialogOverdue(since)) { lockNow(); return null; }
+    if (dialogOverdue(since)) throw lockForTimeout();
     return r;
   }
+  // 止めた印が、受け止めるところの無いまま上がってきても、エラーとして出さない
+  window.addEventListener('unhandledrejection', e => { if (e.reason && e.reason.code === TIMEOUT_LOCK) e.preventDefault(); });
+  window.addEventListener('error', e => { if (e.error && e.error.code === TIMEOUT_LOCK) e.preventDefault(); });
   let savePending = false;  // V2.00.004〜 保存待ちがあるか（ロックの前に書く）
   // V2.01.004〜 ロックの途中（画面はもう隠し、保存の終わりを待っている間）。鍵はまだあるが、画面には何も出さない
   let lockingNow = false;
@@ -1517,14 +1534,23 @@
      待っている操作がすでにあれば重ねない（その操作が順番の来たときに最新を書く）。こうすると、どんな順で終わっても、端末に最後に残るのは最新の状態
      （V2.01.006 は、書く・書き直す・消すが別々に動き、保存先が非同期だと、終わる順が入れかわって古い退避が残ったり、新しい退避が消えたりした） */
   let stashIO = Promise.resolve(), stashIOWaiting = false;
+  let stashDropUpTo = Infinity;   // V2.01.009〜 端末の退避を消すとき、この時刻（at）より新しい退避は消さない
   const stashWritten = new WeakSet();   // V2.01.008〜 端末に書けた退避（端末で消えていたら、別のタブで戻したか捨てた）
   function syncStash() {
     if (stashIOWaiting) return stashIO;
     stashIOWaiting = true;
     const run = async () => {
       stashIOWaiting = false;   // ここから先の変化は、次の順番で書く
-      const cur = unsavedStash;
-      try { if (cur) { await store.set(UNSAVED_KEY, JSON.stringify(cur)); stashWritten.add(cur); } else await store.delete(UNSAVED_KEY); } catch {}
+      const cur = unsavedStash, upTo = stashDropUpTo;
+      stashDropUpTo = Infinity;
+      try {
+        if (cur) { await store.set(UNSAVED_KEY, JSON.stringify(cur)); stashWritten.add(cur); }
+        else {
+          // V2.01.009〜 戻した・捨てた退避より新しい退避（ほかのタブがあとで残したもの）は消さない
+          if (upTo !== Infinity) { const st = await loadJSON(UNSAVED_KEY); if (st && Number(st.at) > upTo) return; }
+          await store.delete(UNSAVED_KEY);
+        }
+      } catch {}
     };
     stashIO = stashIO.then(run, run);
     return stashIO;
@@ -1544,7 +1570,14 @@
     await syncStash();   // V2.01.007〜 端末へは1列で（ロックは、これを待たずに上限の時間で鍵を消せる）
     return true;
   }
-  function clearUnsaved() { stashGen++; unsavedStash = null; syncStash(); }   // V2.01.007〜 消すのも同じ1列で
+  /* V2.01.007〜 消すのも同じ1列で。V2.01.009〜 upTo を渡すと、その時刻（at）までの退避だけを消す（それより新しい退避は残す）。
+     渡さなければ、すべて消す（リセット・別の金庫の退避） */
+  function clearUnsaved(upTo = Infinity) {
+    stashGen++;
+    if (!unsavedStash || !(Number(unsavedStash.at) > upTo)) unsavedStash = null;
+    stashDropUpTo = upTo;
+    syncStash();
+  }
   /* V2.01.008〜（自己点検 B・C）
      - 端末の退避を先に見る。端末に書けた退避が端末から消えていたら、別のタブで戻したか捨てたので、このタブのメモリからも出さない
      - 作り直す前の鍵（別の金庫の番号）の退避は、もう使えないので消す
@@ -1554,9 +1587,12 @@
     const stored = await loadJSON(UNSAVED_KEY);
     if (lockedSince(ep)) return;
     if (!stored && unsavedStash && stashWritten.has(unsavedStash)) unsavedStash = null;
-    const s = stored || unsavedStash;
-    if (!s || !vault || !cryptoKey || viewOnly) return;
-    if (s.vaultId !== vault.vaultId) { clearUnsaved(); return; }
+    if (!vault || !cryptoKey || viewOnly) return;
+    /* V2.01.009〜 端末とメモリの両方に退避があるときは、新しいほう（at が大きいほう）を出す（チャッピーさんの再点検：
+       V2.01.008 は端末を先にしたので、端末に古い退避 A・メモリにだけ新しい退避 B（書けなかった）があると、A を戻して B まで消した） */
+    const mine = [stored, unsavedStash].filter(x => x && x.vaultId === vault.vaultId && Number.isFinite(Number(x.at)));
+    const s = mine.sort((p, q) => Number(q.at) - Number(p.at))[0];
+    if (!s) { if (stored || unsavedStash) clearUnsaved(); return; }   // 作り直す前の鍵（別の金庫の番号）の退避だけ：もう使えないので消す
     let content;
     try { content = normalize(await decryptJSON(cryptoKey, s)); } catch { return; }
     if (lockedSince(ep)) return;
@@ -1566,10 +1602,10 @@
       try { await persist(); }
       catch (e) { if (!lockedSince(ep)) setStatus('戻した変更を保存できませんでした：' + e.message, true); return; }
       if (lockedSince(ep) || hasUnsaved()) return;   // 保存できたと言えない → 退避は残す（次に開いたときにまた聞く）
-      clearUnsaved();
+      clearUnsaved(Number(s.at));   // V2.01.009〜 戻したものとそれより古い退避だけを消す
       setStatus('保存できなかった変更を戻しました');
-    } else if (askConfirm('保存できなかった変更を捨てますか？\n\n「キャンセル」なら、次に開いたときにもう一度聞きます。')) {
-      clearUnsaved();
+    } else if (!lockedSince(ep) && askConfirm('保存できなかった変更を捨てますか？\n\n「キャンセル」なら、次に開いたときにもう一度聞きます。')) {
+      clearUnsaved(Number(s.at));
     }
   }
 
@@ -2170,6 +2206,7 @@
     }, 300);
   }
   function setStatus(msg, isError) {
+    if (Date.now() < timeoutQuietUntil) return;   // V2.01.009〜 時間切れで止めた処理の知らせは出さない
     const s = document.getElementById('status');
     s.textContent = msg; s.classList.toggle('error', !!isError);
   }
@@ -2273,6 +2310,7 @@
   }
   let toastTimer;
   function showToast(msg, isError) {
+    if (Date.now() < timeoutQuietUntil) return;   // V2.01.009〜 時間切れで止めた処理の知らせは出さない
     toast.textContent = msg;
     toast.style.background = isError ? 'var(--seal)' : 'var(--ink)';
     toast.classList.add('show');

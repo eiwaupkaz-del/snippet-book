@@ -1,5 +1,5 @@
-// 依頼100 スニペット帳 V2 の鍵のしくみの手元テスト（Node 18 以降）
-// 使い方：node test-core.mjs [snippet-book.html]
+// スニペット帳 V2 の鍵のしくみのテスト（Node 18 以降）
+// 使い方：node tests/test-core.mjs [app/snippet-book.html]
 // HTML の /*<core> 〜 /*</core>*/ を切り出して、そのまま動かす（写しを作らない）。
 import { readFileSync } from 'node:fs';
 import { webcrypto } from 'node:crypto';
@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const html = readFileSync(process.argv[2] || join(here, 'snippet-book.html'), 'utf8');
+const html = readFileSync(process.argv[2] || join(here, '..', 'app', 'snippet-book.html'), 'utf8');
 const a = html.indexOf('/*<core>'), b = html.indexOf('/*</core>*/');
 if (a < 0 || b < 0) { console.error('core の目印が見つかりません'); process.exit(1); }
 const names = ['enc','dec','b64','b64url','randomBytes','PBKDF2_ITER_OLD','PBKDF2_ITER_NEW','deriveKey','encryptJSON','decryptJSON',

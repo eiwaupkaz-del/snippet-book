@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Snippet Book User Guide (Version 2.02.000)</title>
+<style>
+  @page { size: A4; margin: 14mm 13mm 16mm; }
+  :root { --ink:#16211C; --soft:#5C6B63; --rule:#C6CDC5; --brass:#A8762C; --seal:#9C3B2E; --red:#BE0B1A; --focus:#2E6F70; }
+  * { box-sizing: border-box; }
+  body { margin:0; color:var(--ink); font-family:"Helvetica Neue",Helvetica,Arial,"Hiragino Sans",sans-serif; font-size:10.5pt; line-height:1.6; }
+  .cover { height:265mm; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; page-break-after:always; }
+  .cover img { width:34mm; height:34mm; border-radius:7.5mm; margin-bottom:12mm; box-shadow:0 1px 4px rgba(0,0,0,.15); }
+  .cover .eyebrow { font-family:Menlo,monospace; letter-spacing:.25em; color:var(--brass); font-size:10pt; }
+  .cover h1 { font-size:30pt; margin:8mm 0 6mm; letter-spacing:.04em; }
+  .cover .bar { width:36mm; border-top:1.5px solid var(--ink); margin:0 0 6mm; }
+  .cover .sub { color:var(--soft); font-size:13pt; }
+  .cover .ver { margin-top:16mm; font-family:Menlo,monospace; color:var(--soft); font-size:10pt; }
+  .cover .url { margin-top:4mm; font-family:Menlo,monospace; font-size:11pt; }
+  .toc { page-break-after:always; }
+  .toc h2 { border:0; }
+  .toc ol { list-style:none; padding:0; margin:0; font-size:11.5pt; line-height:2.1; }
+  h2 { font-size:15pt; margin:9mm 0 4mm; padding-bottom:2mm; border-bottom:1.5px solid var(--ink); page-break-after:avoid; }
+  h2:first-child { margin-top:0; }
+  h3 { font-size:11.5pt; margin:5mm 0 2mm; page-break-after:avoid; }
+  p { margin:0 0 3mm; }
+  .lead { color:var(--soft); }
+  .steps { list-style:none; padding:0; margin:0 0 3mm; counter-reset:s; }
+  .steps li { position:relative; padding-left:9mm; margin-bottom:2.2mm; counter-increment:s; }
+  .steps li::before { content:counter(s); position:absolute; left:0; top:.3mm; width:6mm; height:6mm; border-radius:50%; background:var(--ink); color:#fff; font-size:8.5pt; font-weight:600; text-align:center; line-height:6mm; }
+  ul.dots { margin:0 0 3mm; padding-left:6mm; }
+  .box { border:1px solid var(--rule); background:#F4F5F2; border-radius:2mm; padding:3.5mm 5mm; margin:3mm 0 4mm; page-break-inside:avoid; }
+  .box.info { background:#EFF4F3; border-color:#9DB5B2; }
+  .box.warn { background:#F8F1F0; border-color:#E5C9C4; border-left:3px solid var(--seal); }
+  .box .t { font-weight:700; margin-bottom:1.5mm; }
+  .box.warn .t, .box.warn b.r { color:var(--seal); }
+  .box p:last-child, .box ul:last-child { margin-bottom:0; }
+  kbd, .btn { font-family:Menlo,monospace; font-size:8.8pt; border:1px solid var(--rule); background:#F4F5F2; border-radius:1mm; padding:0 1.5mm; white-space:nowrap; }
+  .btn { font-family:inherit; }
+  code { font-family:Menlo,monospace; font-size:8.8pt; background:#F4F5F2; padding:.3mm 1.2mm; border-radius:1mm; word-break:break-all; }
+  table { width:100%; border-collapse:collapse; margin:2mm 0 4mm; font-size:9.8pt; page-break-inside:auto; }
+  th, td { border:1px solid var(--rule); padding:2mm 3mm; vertical-align:top; text-align:left; }
+  th { background:#F4F5F2; }
+  tr { page-break-inside:avoid; }
+  .rk { font-family:Menlo,monospace; letter-spacing:.06em; }
+  .sec { page-break-before:always; }
+  .foot { margin-top:8mm; padding-top:3mm; border-top:1px solid var(--rule); color:var(--soft); font-size:9pt; text-align:center; }
+  .hash { font-family:Menlo,monospace; font-size:8.6pt; word-break:break-all; }
+</style>
+</head>
+<body>
+
+<section class="cover">
+  <img src="icon-512.png" alt="">
+  <div class="eyebrow">SNIPPET INDEX</div>
+  <h1>Snippet Book</h1>
+  <div class="bar"></div>
+  <div class="sub">User Guide</div>
+  <div class="ver">For Version 2.02.000 / November 2026</div>
+  <div class="url">https://snippet.eiwa-up.jp/</div>
+</section>
+
+<section class="toc">
+  <h2>Contents</h2>
+  <ol>
+    <li>1. What the app does</li>
+    <li>2. First-time setup</li>
+    <li>3. Unlocking — passkey and recovery key</li>
+    <li>4. Basic use — copying</li>
+    <li>5. Adding and editing cards</li>
+    <li>6. Storing IDs and passwords</li>
+    <li>7. Organizing cards into sets</li>
+    <li>8. Backups — protecting your data</li>
+    <li>9. Using it like an app (Home Screen, Dock, install)</li>
+    <li>10. Using it on another device / keeping devices in sync</li>
+    <li>11. Giving a password to someone safely</li>
+    <li>12. Key settings (passkeys, recovery key, auto-lock, language)</li>
+    <li>13. Moving from Version 1</li>
+    <li>14. Troubleshooting</li>
+    <li>15. Important rules for staying safe</li>
+    <li>16. Checking that the app is genuine (SHA-256)</li>
+  </ol>
+</section>
+
+<h2>1. What the app does</h2>
+<p class="lead">Snippet Book stores text you use often — commands, notes, IDs and passwords — and copies it with a single click (or a tap on a phone).</p>
+<p>Text you used to type every time can now be pasted in one step. Everything you register is stored on your own computer or phone, protected by encryption. It is never sent over the internet.</p>
+<div class="box info">
+  <div class="t">Useful when you…</div>
+  <ul class="dots">
+    <li>type the same server login command again and again</li>
+    <li>often enter email addresses or passwords</li>
+    <li>reuse the same standard phrases</li>
+  </ul>
+</div>
+<div class="box">
+  <div class="t">Language</div>
+  <ul class="dots">
+    <li>The app's screens are available in <b>Japanese and English</b> (Version 2.02.000 and later). At first the app follows your browser's language (Japanese for a Japanese browser, English otherwise).</li>
+    <li>To switch, use <span class="btn">日本語</span> | <span class="btn">English</span> at the top right of the lock screen, or <b>Language</b> at the bottom of the key settings (chapter 12).</li>
+    <li>Button names in this guide are those of the English screens.</li>
+  </ul>
+</div>
+
+<h2>2. First-time setup</h2>
+<p>When you open the app for the first time, the <b>Get started</b> screen appears.</p>
+<ol class="steps">
+  <li>Press <span class="btn">Create new</span>. (If you have a backup from the previous version, press <span class="btn">Start from a backup</span> — see chapter 13.)</li>
+  <li>Your <b>recovery key</b> is shown. It has 25 characters, like <span class="rk">K7QM3-XTP9A-…</span>. Save it with <span class="btn">Print</span> or <span class="btn">Copy (for your password manager)</span>.</li>
+  <li>To confirm, type the <b>last 5 characters</b> of the recovery key and press <span class="btn">I have saved it</span>.</li>
+  <li>When asked "Register a passkey on this device?", press OK and register with your fingerprint, face, etc. (or your computer's password). If asked where to save it, <b>iCloud Keychain</b> is recommended on iPhone and Mac.</li>
+</ol>
+<div class="box warn">
+  <div class="t">The most important warning</div>
+  <p>The recovery key is like a spare house key. <b class="r">Once you close that screen, it can never be shown again.</b> If you lose both your passkeys and the recovery key, <b class="r">nobody — not even this app — can open your data</b>. Print it or save it in a password manager, and keep it <b>somewhere other than your backup files</b>. Do not show it to anyone.</p>
+</div>
+
+<h2>3. Unlocking — passkey and recovery key</h2>
+<h3>Usually: unlock with a passkey</h3>
+<p>Press <span class="btn">🔑 Unlock with passkey</span> on the lock screen and confirm with your fingerprint, face, etc. (the same way you unlock your device). Your data opens as you left it. There is nothing to type.</p>
+<h3>When a passkey is not available: use the recovery key</h3>
+<p>Type your saved recovery key in the <b>Open with recovery key</b> box and press <span class="btn">Open with recovery key</span>. The <code>-</code> separators are optional, and lowercase is fine. The digit 0 and the letter O, and the digit 1 and the letters I and L, are read as the same.</p>
+<p>When you step away, press <span class="btn">🔒 Lock</span> at the top right to lock immediately.</p>
+<p>After <b>5 minutes</b> without activity the app locks itself. You can choose 1, 5, 15 or 30 minutes, or Never, in the key settings (chapter 12). Time spent in another tab or app also counts as inactivity. While the recovery key screen is shown you get extra time, but the app still locks after 10 minutes. If a confirmation dialog ("Continue?" etc.) stays open past the time limit, the app locks as soon as it is closed and the operation is cancelled (this is not treated as pressing "Cancel"; you will see "Locked because there was no activity for too long").</p>
+<p>When the app locks (manually or automatically), it clears everything that was on the screen: cards, edit fields, the search text, the password-sharing screen and any recovery key you were typing. If you were exporting, sending or importing, that operation is cancelled — unlock and do it again. The same applies to registering a passkey or replacing keys: the keys stay as they were.</p>
+<p>When you press Lock, the screen is cleared first, before saving finishes. If something is still being saved, "🔒 Locking…" is shown for a few seconds. If saving does not finish within 5 seconds, your edits are kept encrypted with your key, and the next time you unlock you are asked whether to restore them. Locking always finishes within about 7 seconds. If your edits could neither be saved nor kept, the unlock screen says "Your last changes before locking could not be protected". After unlocking, check whether your last changes are there.</p>
+<div class="box">
+  <div class="t">Devices without passkey support</div>
+  <p>Older devices or browsers may not be able to register a passkey (the app says it is not supported). On such devices, unlock with the recovery key each time. Your data is protected just as well.</p>
+</div>
+
+<h2>4. Basic use — copying</h2>
+<p>When the <b>Copy</b> button at the top is selected, you are in copy mode. This is the normal mode.</p>
+<ol class="steps">
+  <li>Click (or tap) the text of the card you want to copy.</li>
+  <li>A message confirms the copy, and the card is briefly stamped <b>Copied</b>.</li>
+  <li>Paste it where you need it as usual (<kbd>⌘+V</kbd> on a Mac, <kbd>Ctrl+V</kbd> on Windows).</li>
+</ol>
+<div class="box">
+  <div class="t">Copying with the keyboard (computers)</div>
+  <p>Use the number at the left of each card: <kbd>⌘+1</kbd> to <kbd>⌘+9</kbd>, and <kbd>⌘+0</kbd> for the 10th card, copy that card directly. (On Windows use the <kbd>Ctrl</kbd> key.)</p>
+</div>
+
+<h2>5. Adding and editing cards</h2>
+<p>Press <b>Edit</b> at the top to switch to edit mode.</p>
+<ul class="dots">
+  <li><b>Add</b>: create a new card with the <span class="btn">Add</span> button.</li>
+  <li><b>Change</b>: just retype the text on the card. There is no Save button — changes are saved automatically as you type.</li>
+  <li><b>Reorder</b>: use ↑ ↓ at the right of a card. Putting the ones you use most at the top is handy.</li>
+  <li><b>Delete</b>: ✕ deletes the card.</li>
+</ul>
+<p>When you are done, press <b>Copy</b> to return to copy mode.</p>
+
+<h2>6. Storing IDs and passwords</h2>
+<p>For login details, where an ID and a password belong together, use a special card.</p>
+<ol class="steps">
+  <li>In edit mode, press <span class="btn">Add ID/password</span>.</li>
+  <li>Enter the <b>ID / user name</b> and the <b>Password</b>.</li>
+</ol>
+<p>Back in copy mode, the ID and the password each have their own <span class="btn">Copy</span> button. The password is masked (●●●) so nobody can read it over your shoulder. Press 👁 to show it for 3 seconds.</p>
+<div class="box">
+  <div class="t">With the keyboard (computers)</div>
+  <p>On ID/password cards, <kbd>⌘+number</kbd> copies the password and <kbd>⌘+Shift+number</kbd> copies the ID.</p>
+</div>
+
+<h2>7. Organizing cards into sets</h2>
+<p>You can keep separate notebooks for different purposes, for example "Servers" and "Email". The sets appear as tabs at the top; click one to switch.</p>
+<p>In edit mode, <b>+</b> (Add a set) appears to the right of the tabs. Click the current tab again to rename it. <b>×</b> deletes the current set.</p>
+<p>Keyboard shortcuts (<kbd>⌘+number</kbd>) work on the set currently shown.</p>
+
+<h2>8. Backups — protecting your data</h2>
+<p>Stored data can occasionally be lost (especially on phones). With a backup, you can restore it.</p>
+<h3>How to make a backup</h3>
+<ol class="steps">
+  <li>Press <span class="btn">💾 Back up &amp; lock</span> at the top right.</li>
+  <li>In Chrome and Edge on a computer, a <b>dialog to choose the location</b> appears; choose a folder and save. On iPhone and iPad, "Ready to save" appears: press <span class="btn">Choose where to save</span> and pick <b>"Save to Files"</b> in the share sheet to choose any folder, such as iCloud Drive. Browsers without such a dialog (Safari on Mac, Firefox, etc.) save to the downloads folder.</li>
+  <li>The file name is "data name-date-time-obk-tag.enc.json" (for example snippet-book-20261103-1405-obk-7K3QX9MZ2D.enc.json). The last 10 characters are a tag made from the SHA-256 of the file, using a key that only your recovery key or passkey can open. <b>Do not rename the file.</b></li>
+  <li>When "Backup complete" appears, press <span class="btn">Lock</span>. You return to the lock screen.</li>
+</ol>
+<p>A banner at the top recommending a backup is also your cue to make one. It also appears after you register a passkey or replace the recovery key.</p>
+<div class="box">
+  <div class="t">Two kinds of export</div>
+  <ul class="dots">
+    <li><b>Back up &amp; lock</b>: an "overwrite backup" for your own safekeeping and for syncing devices. It opens with a passkey or the recovery key.</li>
+    <li><b>Export all, encrypted</b> (at the bottom): a full backup. Choose "Cancel" for a file that opens with your passkey or recovery key, or "OK" for a file that opens with a password just for that file (for giving to someone). That password must be <b>12 characters or more</b>; longer is safer.</li>
+  </ul>
+</div>
+<div class="box warn">
+  <div class="t">Where to keep backups</div>
+  <p>Encrypted backups protect their contents, but <b>do not keep them in the same place as your recovery key</b> (with both, the backup can be opened). Files made with "Export as plain text" <b class="r">can be read by anyone</b>; do not put them in shared cloud folders, for example.</p>
+</div>
+
+<h2>9. Using it like an app (Home Screen, Dock, install)</h2>
+<p>Opening it from an icon makes it work like an app, and on phones your data is less likely to be cleared.</p>
+<table>
+  <tr><th style="width:32%">Device</th><th>How</th></tr>
+  <tr><td>iPhone / iPad (Safari)</td><td>Share button ⬆︎ at the bottom → "Add to Home Screen". If you added it before, remove it and add it again to get the new icon.</td></tr>
+  <tr><td>Mac (Safari)</td><td>Menu "File" → "Add to Dock".</td></tr>
+  <tr><td>Mac / Windows (Chrome)</td><td>The "Install" icon at the right of the address bar, or menu → "Cast, save, and share" → "Install".</td></tr>
+  <tr><td>Android (Chrome)</td><td>Menu → "Add to Home screen" or "Install app".</td></tr>
+</table>
+<p>Opened from the icon, the data and passkeys are the same as in the browser.</p>
+<div class="box">
+  <div class="t">Back up phones often</div>
+  <p>Phones lose stored data more easily. After any important change, make a backup with "Back up &amp; lock".</p>
+</div>
+<div class="box">
+  <div class="t">View only</div>
+  <p>On devices where you do not want to leave data (a shared computer, for example), choose <b>"📄 Just read a file (nothing is saved)"</b> on the start screen. You can open a backup file to view and copy only. It opens with a passkey or the recovery key. Nothing remains after you close it.</p>
+</div>
+
+<h2>10. Using it on another device / keeping devices in sync</h2>
+<p>There is no automatic sync, but you can sync by hand with backups. The safest way is to treat one computer as the "main" device and copy from it to the others.</p>
+<h3>Starting on a new device</h3>
+<ol class="steps">
+  <li>On the main device, press "Back up &amp; lock" to make a file.</li>
+  <li>Send the file to the new device (AirDrop, email attachment, cloud, etc.).</li>
+  <li>On the new device, open https://snippet.eiwa-up.jp/ and choose the file with <span class="btn">Start from a backup</span>.</li>
+  <li>Open it with a passkey (synced passkeys, e.g. via iCloud, work as they are) or the recovery key.</li>
+  <li>When asked "Register a passkey on this device?", register one.</li>
+</ol>
+<p>The recovery key is the same on every device (a new one is not created).</p>
+<h3>Bringing an existing device up to date</h3>
+<ol class="steps">
+  <li>On the main device, press "Back up &amp; lock", make a file and send it.</li>
+  <li>On the lock screen of the other device, choose the file with <b>Open from an overwrite backup</b>.</li>
+  <li>Unlock with a passkey or the recovery key. The contents are replaced.</li>
+</ol>
+<div class="box warn">
+  <div class="t">Beware of overwriting</div>
+  <p>Importing deletes the previous data on that device and replaces it with the chosen contents. To avoid confusion about which is newer, we recommend deciding to "always edit on this device only".</p>
+</div>
+
+<h2>11. Giving a password to someone safely</h2>
+<p>Use <b>Send this set, encrypted</b> at the bottom.</p>
+<ol class="steps">
+  <li>The set currently shown is encrypted and saved as a file.</li>
+  <li>A password just for that file is made automatically and shown. It has 20 characters, like <span class="rk">AB3CD-EF4GH-JK5MN-PQ6RS</span>, and is different every time.</li>
+  <li>Save it with <span class="btn">Copy</span>. <b>The "-" characters are part of the password.</b> It is safest to copy and paste it rather than retype it.</li>
+</ol>
+<div class="box warn">
+  <div class="t">Always do this</div>
+  <p>Send the file and the password <b class="r">by different routes</b>. For example, the file by email and the password by phone, SMS or CP2P. Putting both in the same email defeats the purpose of encryption.</p>
+</div>
+<p>The recipient chooses the file with <span class="btn">Import</span> and enters the password to add its contents to their own notebook.</p>
+<div class="box">
+  <div class="t">If you sent files with Version 2.00.002 or earlier</div>
+  <p>The automatic passwords of those versions were short and could be guessed, given time, by someone who obtained the file. If you sent important passwords or API keys, <b class="r">sending them again is not enough</b> (old files may still exist and could be read).</p>
+  <ol style="margin:1mm 0 0; padding-left:6mm;">
+    <li>Change the passwords themselves at the services they belong to. Revoke and recreate API keys.</li>
+    <li>Then send the new passwords with "Send this set, encrypted" in the current version.</li>
+  </ol>
+</div>
+
+<h2>12. Key settings (passkeys, recovery key, auto-lock, language)</h2>
+<p>After unlocking, press <span class="btn">🔑 Keys</span> at the top right to open the key settings.</p>
+<table>
+  <tr><th style="width:32%">To do this</th><th>How, and what to watch out for</th></tr>
+  <tr><td>Register a passkey on this device</td><td><span class="btn">Register a passkey on this device</span>. Give it a name (e.g. "Safari on iPhone") so you can tell them apart later.</td></tr>
+  <tr><td>Show passkeys registered on other devices in this device's list too</td><td>Each device keeps its own list of passkeys. Move a file made with "Back up &amp; lock" on the other device to this device, and choose it with <span class="btn">Merge passkeys from another device</span> (your data does not change). After merging, this device can also be unlocked with the other device's passkeys (for example a phone via QR code), and backups made here open with any of them. Opening from an overwrite backup merges the lists automatically. Only files with the tamper check (Version 2.00.010 and later) can be merged; for older files, open the app on the other device with the current version and export again.</td></tr>
+  <tr><td>Remove a passkey (device lost or given away)</td><td><span class="btn">Remove</span> in the list. That passkey will no longer unlock the data here. <b>However, the data key does not change.</b> If a device was lost or stolen, do not just remove it — also use "Replace all keys" (someone with that passkey and an earlier backup could read it). Removals are recorded in backups and also take effect on other devices when you merge (they do not come back from old backups). Delete the "Snippet Book" (スニペット帳) passkey left in the device's password manager there as well.</td></tr>
+  <tr><td>Replace the recovery key (lost)</td><td><span class="btn">Replace recovery key</span>, then save the new recovery key. <b>Backups exported earlier still open with the old recovery key</b>, so make a new backup and throw away the old ones.<br><b>If it may have been seen or leaked, use "Replace all keys" below instead.</b> Replacing only the recovery key just re-wraps the data key, so it cannot protect you from someone who has the old recovery key and an old backup.</td></tr>
+  <tr><td>Change the auto-lock time</td><td>Choose 1, 5, 15 or 30 min, or Never, under "Lock after no activity for" (5 minutes at first). This setting is for this device only.</td></tr>
+  <tr><td>Clear the clipboard after copying a password</td><td>Under "After copying a password", choose "Clear after 30 seconds" (the default) or "Do not clear". It applies to copying passwords, the recovery key and passwords for sending (not to ordinary text).<br>Due to browser rules, the clipboard can only be cleared while this page is in front. If you are in another app, it is cleared when you come back and touch the page, and "Clipboard cleared" is shown. <b>If you do not come back, it stays on the clipboard.</b> Copies that went into clipboard history (Windows Win+V, history apps) or the clipboard shared between Mac and iPhone cannot be cleared. After pasting an important password, it is best to come back to this page.</td></tr>
+  <tr><td>See backup and open history</td><td>"Backup history" and "Open history" appear lower in the key settings. They list, newest first, when and on which device and browser backups were exported or the data was opened (with a passkey or recovery key, or view-only). Normally only the latest 3 rows are shown; press "Show … more" for older ones. Backup rows also show the file-name tag (10 characters), so you can compare them with your files. The history goes into backups encrypted, and is merged when you import a backup of the same data from another device. To keep files small, a backup only contains history from the third-latest backup onwards.</td></tr>
+  <tr><td>Name this device</td><td>Type a name such as "Office MacBook" in "Name of this device". A browser cannot read your computer's name, so this name is shown in the history (if empty, Mac, Windows, iPhone, etc. is shown).</td></tr>
+  <tr><td>Check that a backup file is genuine</td><td>Choose a file with <span class="btn">Check a backup file</span>. Without importing it, the app shows whether the tamper check passes, whether the file-name tag matches, and when and on which device it was made.</td></tr>
+  <tr><td>Change the language (日本語 / English)</td><td>Choose 日本語 or English under <b>Language</b> at the bottom of the key settings, or use <span class="btn">日本語</span> | <span class="btn">English</span> at the top right of the lock screen (Version 2.02.000 and later). At first the app follows your browser's language. The choice is for this device only. Switching changes the screen immediately, including what is currently open. Your registered contents (card and set names) do not change. Backups and shared files made on screens in either language open on screens in the other.</td></tr>
+  <tr><td>Replace all keys (seen, possibly leaked, or just to be safe)</td><td><span class="btn">Replace all keys</span>. A new recovery key is created and all registered passkeys are removed. Afterwards, register your passkeys again and make a new backup.</td></tr>
+</table>
+
+<h2>13. Moving from Version 1</h2>
+<p>The previous version (Version 1) was opened with a master password at https://cp2p.eiwa-up.jp/snippet-book/. Since 4 November 2026, that address automatically takes you to the new address. If you have a backup made with Version 1:</p>
+<ol class="steps">
+  <li>Open https://snippet.eiwa-up.jp/ and choose the backup with <span class="btn">Start from a backup</span>.</li>
+  <li>Enter the master password when asked (this is the last time you use it).</li>
+  <li>Your recovery key is shown. Save it as described in chapter 2 and register a passkey.</li>
+  <li>Make a new-format backup with <span class="btn">💾 Back up &amp; lock</span>. You can throw away the old-format backup.</li>
+</ol>
+<p>Data stored in the browser under the old address remains in that browser. If you have a device you have not moved yet, please contact us.</p>
+
+<h2>14. Troubleshooting</h2>
+<table>
+  <tr><th style="width:34%">Problem</th><th>What to do</th></tr>
+  <tr><td>"🔑 Unlock with passkey" does not appear</td><td>No passkey is registered on this device yet. Unlock with the recovery key, then register one under "🔑 Keys".</td></tr>
+  <tr><td>The passkey does not work</td><td>If you cancelled or it timed out, press it again. If you changed devices or deleted the passkey, unlock with the recovery key.</td></tr>
+  <tr><td>"Wrong recovery key"</td><td>Check that all 25 characters are there. To open an old backup, you need the recovery key from the time the backup was made (if you replaced the recovery key since).</td></tr>
+  <tr><td>Cannot register a passkey (not supported)</td><td>That device or browser does not support it. Unlock with the recovery key each time. As a guide, iOS 18 or later on iPhone and macOS 15 or later on Mac.</td></tr>
+  <tr><td>Data has disappeared or is not shown</td><td>You may have opened a different browser or address. Open it again in the usual browser at the usual address (https://snippet.eiwa-up.jp/). If you have a backup, restore it with "Open from an overwrite backup".</td></tr>
+  <tr><td>"Could not save on this device"</td><td>The device's storage may be full. The operation (replacing keys, registering a passkey, etc.) is cancelled and your data and keys stay as they were. Delete cards you do not need or clear other sites' data, then try again. Make a backup right away, just in case.</td></tr>
+  <tr><td>Using a backup from Version 2.00.009 or earlier</td><td>Those files have no tamper check, so <b>only their contents</b> are used and the key information in the file (passkey list, etc.) is ignored. "Start from a backup" creates a new recovery key — save it and register your passkeys again. "Open from an overwrite backup" replaces only the contents and keeps this device's current keys.</td></tr>
+  <tr><td>"This browser is too old to save safely on this device"</td><td>This browser lacks the mechanism that stops two tabs writing at the same time (Web Locks). To avoid damaging your data, the app does not write on this device (you can still read). Please update your browser (Safari 15.4 or later, Chrome, Edge, etc.). Changes that could not be saved before locking are kept only inside that tab and disappear when the tab is closed.</td></tr>
+  <tr><td>"The saved data on this device was changed first in another tab (window)"</td><td>Snippet Book is also open in another tab or window on this device, and the contents or keys were changed there. To avoid overwriting with older content, this tab does not save. Press <span class="btn">🔒 Lock</span> and unlock again. Edits this tab could not save will be offered back the next time you unlock. Please use Snippet Book in one tab whenever possible.</td></tr>
+  <tr><td>"There are changes from before the lock that could not be saved on this device"</td><td>Your edits could not be saved when the app locked (storage full, changed first in another tab, etc.). They were kept encrypted with your key. Press "OK" to restore them; the current data is replaced (anything saved later in another tab is lost). Otherwise you can discard them or be asked again next time. If Snippet Book was open in two or more tabs, changes kept by another tab may be offered separately next time (the app tells tabs apart and never discards another tab's changes on its own).</td></tr>
+  <tr><td>"Your last changes before locking could not be protected"</td><td>When locking, the edits could neither be saved on this device nor kept encrypted. Those edits may be lost. After unlocking, check whether your last changes are there and redo them if needed. If this happens often, update your browser or use a different one.</td></tr>
+  <tr><td>"This file may have been tampered with"</td><td>The contents, the key information (passkey list, etc.) or the file-name tag differ from when the file was exported. If the contents or key information changed, the file is not imported. If only the file-name tag does not match, you are asked whether to continue. If you do not know why, press "Cancel" and use another backup. This also appears if you renamed the file yourself or gave it another file's name.</td></tr>
+  <tr><td>"Could not open the data (the key does not match the data)"</td><td>The data on this device may be damaged. The app stops without touching the data. If you have a backup, restore it with "Open from an overwrite backup".</td></tr>
+  <tr><td>I have neither a passkey nor the recovery key</td><td>Unfortunately the contents cannot be recovered. Reset with "I have neither a passkey nor the recovery key" and start over. If you have a backup and the recovery key from that time, you can import it.</td></tr>
+  <tr><td>A backup file cannot be imported</td><td>"Open from an overwrite backup" accepts only files made with "Back up &amp; lock". For other files, use "Import" after unlocking.</td></tr>
+  <tr><td>I forgot the Version 1 master password</td><td>Version 1 data cannot be opened. Even with a Version 1 backup, it cannot be opened without the master password.</td></tr>
+</table>
+
+<h2>15. Important rules for staying safe</h2>
+<ul class="dots">
+  <li><b>Always save your recovery key.</b> If you lose both your passkeys and the recovery key, your data cannot be recovered.</li>
+  <li><b>Keep the recovery key and backup files in different places.</b> With both, a backup can be opened.</li>
+  <li><b>Lock your device (passcode, fingerprint, face).</b> Passkeys open the same way you unlock your device.</li>
+  <li><b>Protect important data with backups</b> — especially on phones, and often.</li>
+  <li><b>Use the same device, browser and address.</b> A different place means different data.</li>
+  <li><b>Be careful where you keep plain-text exports.</b> Anyone can read them.</li>
+  <li><b>When giving a file to someone, send the file and the password by different routes.</b></li>
+</ul>
+<p>The app runs only on your device. There is no mechanism that sends your entries to the internet. The font is served together with the app, and nothing is loaded from other sites.</p>
+<div class="box">
+  <div class="t">What it cannot protect against (to be honest)</div>
+  <ul class="dots">
+    <li><b>If the server delivering the app is taken over and the program is replaced with a malicious one</b>, data opened during that time could be read. The comparison on GitHub (chapter 16) is for <b>detecting</b> such a replacement, not for preventing the reading itself.</li>
+    <li>It also cannot protect you <b>if the device itself is compromised</b> (malware, remote control, etc.), or if someone uses it while it is unlocked.</li>
+    <li>When locking, data is cleared from the screen at once, but it may stay in the browser's memory a little longer.</li>
+  </ul>
+</div>
+
+<h2>16. Checking that the app is genuine (SHA-256)</h2>
+<p>You can check that the app file has not been modified using its "hash value" (SHA-256). If it matches the value published on the official site and GitHub, the app is genuine.</p>
+<table>
+  <tr><th style="width:24%">Version</th><th>SHA-256 (snippet-book.html)</th></tr>
+  <tr><td>Version 2.02.000</td><td class="hash">94b9f522820c557dd83a199b57bcf68922af768df8af2d925bcec20bab86df89</td></tr>
+</table>
+<p>On a Mac (Terminal):</p>
+<p><code>curl -s https://snippet.eiwa-up.jp/ | shasum -a 256</code></p>
+<p>On Windows (PowerShell):</p>
+<p><code>Invoke-WebRequest https://snippet.eiwa-up.jp/ -OutFile snippet-book.html; Get-FileHash snippet-book.html -Algorithm SHA256</code></p>
+
+<div class="foot">Snippet Book User Guide / for Version 2.02.000<br>This guide may change as the app is updated. A Japanese version (スニペット帳 かんたん操作マニュアル) is also available.</div>
+</body>
+</html>

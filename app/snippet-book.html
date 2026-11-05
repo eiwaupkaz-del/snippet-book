@@ -26,6 +26,9 @@
 
   /* ---------- lock screen ---------- */
   .lock { max-width:440px; margin:8vh auto 0; padding:0 16px; }
+  .lang-switch { display:flex; justify-content:flex-end; align-items:center; gap:6px; margin:0 0 6px; font-size:11.5px; color:var(--ink-soft); }   /* V2.02.000〜 */
+  .lang-switch button { font:inherit; background:none; border:0; padding:2px 4px; color:var(--ink-soft); cursor:pointer; text-decoration:underline; text-underline-offset:2px; }
+  .lang-switch button[aria-pressed="true"] { color:var(--ink); font-weight:600; text-decoration:none; cursor:default; }
   .lock h1 { font-family:var(--mono); font-size:17px; font-weight:600; margin:0 0 2px; }
   .lock .subtitle { font-family:var(--mono); font-size:10px; color:var(--ink-soft); letter-spacing:.06em; margin:0 0 22px; }
   .lock-card { background:var(--card); border:1px solid var(--rule); border-radius:3px; padding:20px; }
@@ -239,91 +242,92 @@
 
 <!-- ================= LOCK SCREEN ================= -->
 <div class="lock" id="lockScreen">
-  <h1>スニペット帳</h1>
+  <div class="lang-switch" role="group" aria-label="Language"><button type="button" data-lang="ja" lang="ja" data-i-keep>日本語</button><span aria-hidden="true">|</span><button type="button" data-lang="en" lang="en">English</button></div>
+  <h1 data-i="appName">スニペット帳</h1>
   <p class="subtitle">SNIPPET INDEX · LOCKED · <span id="verLock"></span></p>
-  <p class="hint hidden" id="lockingMsg">🔒 ロックしています…（保存が終わるまで少しお待ちください）</p>
+  <p data-i="lockingMsg" class="hint hidden" id="lockingMsg">🔒 ロックしています…（保存が終わるまで少しお待ちください）</p>
 
   <div class="ios-tip hidden" id="iosTip">
-    <strong>📱 iPhone / iPad をお使いの方へ</strong>
-    <p>下の共有ボタン <span class="share-ico">⬆︎</span> から「<b>ホーム画面に追加</b>」しておくと、アプリのように起動でき、データも消えにくくなります。ぜひ追加してからお使いください。</p>
-    <button class="tip-close" id="iosTipClose">閉じる</button>
+    <strong data-i="iosTipHead">📱 iPhone / iPad をお使いの方へ</strong>
+    <p data-i="iosTipBody">下の共有ボタン <span class="share-ico">⬆︎</span> から「<b>ホーム画面に追加</b>」しておくと、アプリのように起動でき、データも消えにくくなります。ぜひ追加してからお使いください。</p>
+    <button data-i="close" class="tip-close" id="iosTipClose">閉じる</button>
   </div>
 
   <!-- setup (first run) -->
   <div class="lock-card hidden" id="setupCard">
-    <h2>はじめる</h2>
-    <p>この端末に保存するデータを、アプリが作る鍵で暗号化します。ふだんは<b>パスキー</b>（指紋・顔など）で開き、新しい端末やパスキーが使えないときは<b>復元キー</b>で開きます。覚えるパスワードはありません。</p>
+    <h2 data-i="setupTitle">はじめる</h2>
+    <p data-i="setupIntro">この端末に保存するデータを、アプリが作る鍵で暗号化します。ふだんは<b>パスキー</b>（指紋・顔など）で開き、新しい端末やパスキーが使えないときは<b>復元キー</b>で開きます。覚えるパスワードはありません。</p>
     <div class="lock-row">
-      <button class="btn btn-primary" id="createBtn">新しく作る</button>
-      <button class="btn" id="startFromBackup">バックアップから始める</button>
+      <button data-i="createBtn" class="btn btn-primary" id="createBtn">新しく作る</button>
+      <button data-i="startFromBackup" class="btn" id="startFromBackup">バックアップから始める</button>
     </div>
     <input type="file" id="startFile" accept="application/json,.json,.enc.json" hidden>
     <p class="lock-err" id="setupErr"></p>
-    <div class="warn-block">
+    <div data-i="setupWarn" class="warn-block">
       <strong>復元キーは家の合鍵です。</strong> 作るときに1回だけ表示します。印刷するかパスワード管理アプリに保存し、バックアップファイルとは別の場所にしまってください。パスキーも復元キーも無くすと、中身は誰にも——このアプリにも——開けません。
     </div>
     <div class="lock-row" style="margin-top:12px;">
-      <button class="btn btn-quiet" id="toViewFromSetup">📄 セットアップせず、ファイルを読み込むだけ</button>
+      <button data-i="toViewFromSetup" class="btn btn-quiet" id="toViewFromSetup">📄 セットアップせず、ファイルを読み込むだけ</button>
     </div>
   </div>
 
   <!-- unlock (returning) -->
   <div class="lock-card hidden" id="unlockCard">
-    <h2>ロックを解除</h2>
+    <h2 data-i="unlockTitle">ロックを解除</h2>
     <div class="lock-row" id="passkeyRow">
-      <button class="btn btn-primary btn-big" id="passkeyBtn">🔑 パスキーで開く</button>
+      <button data-i="passkeyBtn" class="btn btn-primary btn-big" id="passkeyBtn">🔑 パスキーで開く</button>
     </div>
     <p id="unlockNote"></p>
 
     <div class="rk-box">
-      <div class="restore-head">復元キーで開く</div>
-      <input class="lock-field" id="rkField" type="text" placeholder="復元キー（25文字）" autocomplete="off" autocapitalize="characters" spellcheck="false">
-      <button class="btn" id="rkUnlockBtn">復元キーで開く</button>
+      <div data-i="rkOpen" class="restore-head">復元キーで開く</div>
+      <input data-i-ph="rkPh" class="lock-field" id="rkField" type="text" placeholder="復元キー（25文字）" autocomplete="off" autocapitalize="characters" spellcheck="false">
+      <button data-i="rkOpen" class="btn" id="rkUnlockBtn">復元キーで開く</button>
     </div>
 
     <div class="restore-box" id="restoreBox">
-      <div class="restore-head">上書き用バックアップから開く（任意）</div>
-      <p class="restore-note">ファイルを選んでからパスキーか復元キーで開くと、この端末の前回データを削除し、選んだバックアップの内容で開きます。別の端末のデータを取り込むときに使います。選ばなければ前回のデータでそのまま開きます。</p>
+      <div data-i="restoreHead" class="restore-head">上書き用バックアップから開く（任意）</div>
+      <p data-i="restoreNote" class="restore-note">ファイルを選んでからパスキーか復元キーで開くと、この端末の前回データを削除し、選んだバックアップの内容で開きます。別の端末のデータを取り込むときに使います。選ばなければ前回のデータでそのまま開きます。</p>
       <div class="lock-row">
-        <button class="btn" id="restorePick">上書きバックアップを選ぶ</button>
-        <span class="restore-file" id="restoreFileName">選択なし</span>
+        <button data-i="restorePick" class="btn" id="restorePick">上書きバックアップを選ぶ</button>
+        <span class="restore-file" id="restoreFileName"></span>
       </div>
       <input type="file" id="restoreFile" accept="application/json,.json,.enc.json" hidden>
     </div>
 
     <p class="lock-err" id="unlockErr"></p>
     <div class="lock-row" style="margin-top:12px;">
-      <button class="btn btn-quiet" id="toView">📄 ファイルを読み込むだけ（保存しない）</button>
-      <button class="btn btn-quiet" id="forgotBtn">パスキーも復元キーも無い</button>
+      <button data-i="toView" class="btn btn-quiet" id="toView">📄 ファイルを読み込むだけ（保存しない）</button>
+      <button data-i="forgotBtn" class="btn btn-quiet" id="forgotBtn">パスキーも復元キーも無い</button>
     </div>
   </div>
 
   <!-- migrate (V1 data found) -->
   <div class="lock-card hidden" id="migrateCard">
-    <h2>新しい方式へ移ります</h2>
-    <p>この版から、マスターパスワードの代わりに<b>パスキー</b>と<b>復元キー</b>で守ります。いつものマスターパスワードで1回だけ開くと、自動で移ります。移ったあとはマスターパスワードを使いません。</p>
-    <input class="lock-field" id="migratePw" type="password" placeholder="マスターパスワード" autocomplete="current-password">
+    <h2 data-i="migrateTitle">新しい方式へ移ります</h2>
+    <p data-i="migrateIntro">この版から、マスターパスワードの代わりに<b>パスキー</b>と<b>復元キー</b>で守ります。いつものマスターパスワードで1回だけ開くと、自動で移ります。移ったあとはマスターパスワードを使いません。</p>
+    <input data-i-ph="masterPw" class="lock-field" id="migratePw" type="password" placeholder="マスターパスワード" autocomplete="current-password">
     <div class="lock-row">
-      <button class="btn btn-primary" id="migrateBtn">開いて新しい方式へ移る</button>
+      <button data-i="migrateBtn" class="btn btn-primary" id="migrateBtn">開いて新しい方式へ移る</button>
     </div>
     <p class="lock-err" id="migrateErr"></p>
     <div class="lock-row" style="margin-top:12px;">
-      <button class="btn btn-quiet" id="toViewFromMigrate">📄 ファイルを読み込むだけ（保存しない）</button>
-      <button class="btn btn-quiet" id="forgotOldBtn">パスワードを忘れた</button>
+      <button data-i="toView" class="btn btn-quiet" id="toViewFromMigrate">📄 ファイルを読み込むだけ（保存しない）</button>
+      <button data-i="forgotOldBtn" class="btn btn-quiet" id="forgotOldBtn">パスワードを忘れた</button>
     </div>
   </div>
 
   <!-- view-only (load an encrypted file, no vault) -->
   <div class="lock-card hidden" id="viewCard">
-    <h2>読み込んで見るだけ</h2>
-    <p>Mac などで「暗号化して書き出し」したファイルを開いて、コピーだけできます。この端末には何も保存されません。スマホでの利用に向いています。</p>
+    <h2 data-i="viewTitle">読み込んで見るだけ</h2>
+    <p data-i="viewIntro">Mac などで「暗号化して書き出し」したファイルを開いて、コピーだけできます。この端末には何も保存されません。スマホでの利用に向いています。</p>
     <div class="lock-row">
-      <button class="btn btn-primary" id="viewPick">暗号化ファイルを選ぶ</button>
-      <button class="btn btn-quiet" id="viewBack">戻る</button>
+      <button data-i="viewPick" class="btn btn-primary" id="viewPick">暗号化ファイルを選ぶ</button>
+      <button data-i="viewBack" class="btn btn-quiet" id="viewBack">戻る</button>
     </div>
     <input type="file" id="viewFile" accept="application/json,.json,.enc.json" hidden>
     <p class="lock-err" id="viewErr"></p>
-    <div class="warn-block" style="margin-top:14px;">
+    <div data-i="viewWarn" class="warn-block" style="margin-top:14px;">
       閉じると内容は消えます。編集や保存はできません（見る・コピーする専用）。
     </div>
   </div>
@@ -334,36 +338,36 @@
   <header>
     <div>
       <div class="title-row">
-        <h1>スニペット帳</h1>
-        <input class="data-name" id="dataName" type="text" placeholder="データ名" aria-label="データ名" maxlength="40">
+        <h1 data-i="appName">スニペット帳</h1>
+        <input data-i-ph="dataName" data-i-aria="dataName" class="data-name" id="dataName" type="text" placeholder="データ名" aria-label="データ名" maxlength="40">
       </div>
       <p class="subtitle">SNIPPET INDEX · <span id="verMain"></span></p>
     </div>
     <div class="head-tools">
-      <div class="switch" role="group" aria-label="モード">
-        <button id="modeCopy" aria-pressed="true">コピー</button>
-        <button id="modeEdit" aria-pressed="false">編集</button>
+      <div data-i-aria="modeLabel" class="switch" role="group" aria-label="モード">
+        <button data-i="copy" id="modeCopy" aria-pressed="true">コピー</button>
+        <button data-i="edit" id="modeEdit" aria-pressed="false">編集</button>
       </div>
-      <button class="lock-btn" id="backupExit" title="上書きバックアップを取ってからロックする">💾 バックアップしてロック</button>
-      <button class="lock-btn" id="keysBtn" title="パスキーと復元キー">🔑 鍵</button>
-      <button class="lock-btn" id="lockNow" title="今すぐロック">🔒 ロック</button>
+      <button data-i="backupExit" data-i-title="backupExitTitle" class="lock-btn" id="backupExit" title="上書きバックアップを取ってからロックする">💾 バックアップしてロック</button>
+      <button data-i="keysBtn" data-i-title="keysBtnTitle" class="lock-btn" id="keysBtn" title="パスキーと復元キー">🔑 鍵</button>
+      <button data-i="lockNow" data-i-title="lockNowTitle" class="lock-btn" id="lockNow" title="今すぐロック">🔒 ロック</button>
     </div>
   </header>
 
-  <div class="sets" id="sets" role="tablist" aria-label="セット"></div>
+  <div data-i-aria="sets" class="sets" id="sets" role="tablist" aria-label="セット"></div>
   <hr class="sets-rule">
 
   <div class="toolbar">
-    <input class="search" id="search" type="search" placeholder="絞り込む" aria-label="絞り込む">
-    <button class="btn btn-primary" id="add" hidden>追加</button>
-    <button class="btn" id="addSecret" hidden>ID/パスワードを追加</button>
+    <input data-i-ph="filter" data-i-aria="filter" class="search" id="search" type="search" placeholder="絞り込む" aria-label="絞り込む">
+    <button data-i="add" class="btn btn-primary" id="add" hidden>追加</button>
+    <button data-i="addSecret" class="btn" id="addSecret" hidden>ID/パスワードを追加</button>
   </div>
 
   <p class="hint" id="hint"></p>
 
   <div class="backup-banner" id="backupBanner">
     <span class="msg" id="backupMsg"></span>
-    <button id="backupNow">今すぐバックアップ</button>
+    <button data-i="backupNow" id="backupNow">今すぐバックアップ</button>
   </div>
 
   <div class="cards" id="cards"></div>
@@ -371,14 +375,14 @@
 
   <footer>
     <div class="footer-tools">
-      <button class="btn" id="exportEnc" title="全セットを暗号化してバックアップ">全体を暗号化して書き出し</button>
-      <button class="btn" id="importBtn">読み込み</button>
+      <button data-i="exportEnc" data-i-title="exportEncTitle" class="btn" id="exportEnc" title="全セットを暗号化してバックアップ">全体を暗号化して書き出し</button>
+      <button data-i="importBtn" class="btn" id="importBtn">読み込み</button>
       <input type="file" id="importFile" accept="application/json,.json,.enc.json" hidden>
-      <button class="btn btn-quiet" id="exportSet" title="平文で書き出し">平文で書き出し ▾</button>
-      <button class="btn btn-primary" id="sendSet" title="このセットだけを暗号化して人に送る">このセットを暗号化して送る</button>
+      <button data-i="exportSet" data-i-title="exportSetTitle" class="btn btn-quiet" id="exportSet" title="平文で書き出し">平文で書き出し ▾</button>
+      <button data-i="sendSet" data-i-title="sendSetTitle" class="btn btn-primary" id="sendSet" title="このセットだけを暗号化して人に送る">このセットを暗号化して送る</button>
     </div>
-    <button class="btn btn-quiet" id="reset">このセットを空に</button>
-    <p class="warn">
+    <button data-i="reset" class="btn btn-quiet" id="reset">このセットを空に</button>
+    <p data-i="footerWarn" class="warn">
       端末内のデータはアプリが作った鍵で暗号化し、その鍵はパスキーと復元キーで守っています。バックアップは
       <strong>「全体を暗号化して書き出し」</strong>を使ってください。<strong>平文で書き出したファイルは中身が見える状態</strong>なので、クラウド同期フォルダなどに置かず保管場所に注意してください。
     </p>
@@ -388,20 +392,20 @@
 <!-- send-set password reveal dialog -->
 <div class="overlay hidden" id="sendOverlay">
   <div class="dialog">
-    <h2>このセットのパスワード</h2>
+    <h2 data-i="sendTitle">このセットのパスワード</h2>
     <p class="dlg-sub" id="sendFileName">—</p>
     <div class="pw-reveal">
       <code id="sendPw">—</code>
-      <button class="btn" id="sendCopy">コピー</button>
+      <button data-i="copy" class="btn" id="sendCopy">コピー</button>
     </div>
-    <div class="warn-block" style="margin-top:14px;">
+    <div data-i="sendWarn" class="warn-block" style="margin-top:14px;">
       <strong>ファイルとこのパスワードは、必ず別々の経路で送ってください。</strong>
       たとえばファイルはメールで、パスワードは電話・SMS・CP2P などで。
       同じメールに両方入れると、暗号化した意味がなくなります。
     </div>
-    <p class="dlg-note">このパスワードは今だけ表示されます。閉じると二度と表示できません（毎回別のパスワードになります）。控えてから閉じてください。</p>
+    <p data-i="sendNote" class="dlg-note">このパスワードは今だけ表示されます。閉じると二度と表示できません（毎回別のパスワードになります）。控えてから閉じてください。</p>
     <div class="lock-row" style="justify-content:flex-end;">
-      <button class="btn btn-primary" id="sendDone">控えました・閉じる</button>
+      <button data-i="sendDone" class="btn btn-primary" id="sendDone">控えました・閉じる</button>
     </div>
   </div>
 </div>
@@ -409,15 +413,15 @@
 <!-- backup-and-exit confirmation dialog -->
 <div class="overlay hidden" id="exitOverlay">
   <div class="dialog">
-    <h2>バックアップが完了しました</h2>
+    <h2 data-i="exitTitle">バックアップが完了しました</h2>
     <p class="dlg-sub" id="exitFileName">—</p>
-    <div class="warn-block" style="margin-top:0;background:rgba(46,111,112,.08);border-left-color:var(--focus);">
+    <div data-i="exitWarn" class="warn-block" style="margin-top:0;background:rgba(46,111,112,.08);border-left-color:var(--focus);">
       上書き用の暗号バックアップを書き出しました。<strong style="color:var(--focus);">「ロックする」を押すと、ロック画面に戻ります。</strong>
       次回このバックアップから起動すると、この時点の内容に戻せます。
     </div>
-    <p class="dlg-note">保存先は、選んだ場所です（パソコンの Chrome・Edge は保存先を選ぶ画面、iPhone・iPad は共有の画面の「“ファイル”に保存」で選べます。どちらも出ないブラウザはダウンロード先のフォルダ）。ファイル名の最後の10文字は改ざんを見分ける印なので、名前は変えないでください。別の端末に同期するときは、このファイルを相手の端末に渡し、起動画面の「上書き用バックアップから開く」で読み込んでください。</p>
+    <p data-i="exitNote" class="dlg-note">保存先は、選んだ場所です（パソコンの Chrome・Edge は保存先を選ぶ画面、iPhone・iPad は共有の画面の「“ファイル”に保存」で選べます。どちらも出ないブラウザはダウンロード先のフォルダ）。ファイル名の最後の10文字は改ざんを見分ける印なので、名前は変えないでください。別の端末に同期するときは、このファイルを相手の端末に渡し、起動画面の「上書き用バックアップから開く」で読み込んでください。</p>
     <div class="lock-row" style="justify-content:flex-end;">
-      <button class="btn btn-primary" id="exitDone">ロックする</button>
+      <button data-i="exitDone" class="btn btn-primary" id="exitDone">ロックする</button>
     </div>
   </div>
 </div>
@@ -425,13 +429,13 @@
 <!-- V2.01.001〜 iPhone・iPad：保存先を選ぶ（共有シート） -->
 <div class="overlay hidden" id="shareOverlay">
   <div class="dialog">
-    <h2>保存の準備ができました</h2>
+    <h2 data-i="shareTitle">保存の準備ができました</h2>
     <p class="dlg-sub" id="shareFileName">—</p>
-    <p class="dlg-note">「保存先を選ぶ」を押すと共有の画面が出ます。<b>「“ファイル”に保存」</b>を選ぶと、iCloud Drive やこの iPhone（iPad）の中の、好きなフォルダに保存できます。ファイル名は変えないでください（最後の10文字は改ざんを見分ける印です）。</p>
+    <p data-i="shareNote" class="dlg-note">「保存先を選ぶ」を押すと共有の画面が出ます。<b>「“ファイル”に保存」</b>を選ぶと、iCloud Drive やこの iPhone（iPad）の中の、好きなフォルダに保存できます。ファイル名は変えないでください（最後の10文字は改ざんを見分ける印です）。</p>
     <div class="lock-row" style="justify-content:flex-end;flex-wrap:wrap;">
-      <button class="btn btn-quiet" id="shareCancel">やめる</button>
-      <button class="btn" id="shareDl">ダウンロードに保存</button>
-      <button class="btn btn-primary" id="shareGo">保存先を選ぶ</button>
+      <button data-i="cancel" class="btn btn-quiet" id="shareCancel">やめる</button>
+      <button data-i="shareDl" class="btn" id="shareDl">ダウンロードに保存</button>
+      <button data-i="shareGo" class="btn btn-primary" id="shareGo">保存先を選ぶ</button>
     </div>
     <p class="lock-err" id="shareErr"></p>
   </div>
@@ -440,53 +444,59 @@
 <!-- keys settings dialog -->
 <div class="overlay hidden" id="keysOverlay">
   <div class="dialog">
-    <h2>鍵の設定</h2>
+    <h2 data-i="keysTitle">鍵の設定</h2>
     <p class="dlg-sub" id="keysSub">—</p>
-    <div class="restore-head">登録したパスキー</div>
+    <div data-i="pkHead" class="restore-head">登録したパスキー</div>
     <ul class="pk-list" id="pkList"></ul>
     <div class="lock-row" style="margin:8px 0 14px;">
-      <button class="btn btn-primary" id="addPasskeyBtn">この端末でパスキーを登録</button>
-      <button class="btn" id="mergePkBtn">ほかの端末のパスキーを合わせる</button>
+      <button data-i="addPasskeyBtn" class="btn btn-primary" id="addPasskeyBtn">この端末でパスキーを登録</button>
+      <button data-i="mergePkBtn" class="btn" id="mergePkBtn">ほかの端末のパスキーを合わせる</button>
     </div>
     <input type="file" id="mergePkFile" accept="application/json,.json,.enc.json" hidden>
-    <p class="dlg-note" style="margin:-6px 0 14px;">パスキーの一覧は端末ごとに持っています。ほかの端末で登録したパスキーをここにも出すには、その端末で「バックアップしてロック」したファイルを、ここで「ほかの端末のパスキーを合わせる」から選んでください（中身は変わりません）。上書き用バックアップから開いたときも、一覧は自動で合わさります。</p>
-    <div class="restore-head">復元キー</div>
-    <p class="dlg-note" style="margin:0 0 8px;"><b>無くしたとき</b>は「復元キーを作り直す」。これから書き出すバックアップは新しい復元キーで開きます（前に書き出したバックアップは古い復元キーで開いたままです）。<br><b>人に見られた・漏れたかもしれないとき</b>は「鍵をすべて作り直す」を使い、そのあと新しくバックアップを取って、古いバックアップは捨ててください。復元キーの作り直しだけでは、古い復元キーと古いバックアップを持つ人から、データの鍵を守れません。</p>
+    <p data-i="mergePkNote" class="dlg-note" style="margin:-6px 0 14px;">パスキーの一覧は端末ごとに持っています。ほかの端末で登録したパスキーをここにも出すには、その端末で「バックアップしてロック」したファイルを、ここで「ほかの端末のパスキーを合わせる」から選んでください（中身は変わりません）。上書き用バックアップから開いたときも、一覧は自動で合わさります。</p>
+    <div data-i="rkHead" class="restore-head">復元キー</div>
+    <p data-i="rkNote" class="dlg-note" style="margin:0 0 8px;"><b>無くしたとき</b>は「復元キーを作り直す」。これから書き出すバックアップは新しい復元キーで開きます（前に書き出したバックアップは古い復元キーで開いたままです）。<br><b>人に見られた・漏れたかもしれないとき</b>は「鍵をすべて作り直す」を使い、そのあと新しくバックアップを取って、古いバックアップは捨ててください。復元キーの作り直しだけでは、古い復元キーと古いバックアップを持つ人から、データの鍵を守れません。</p>
     <div class="lock-row" style="margin-bottom:14px;">
-      <button class="btn" id="regenRkBtn">復元キーを作り直す</button>
-      <button class="btn btn-quiet" id="rekeyBtn">鍵をすべて作り直す</button>
+      <button data-i="regenRkBtn" class="btn" id="regenRkBtn">復元キーを作り直す</button>
+      <button data-i="rekeyBtn" class="btn btn-quiet" id="rekeyBtn">鍵をすべて作り直す</button>
     </div>
-    <div class="restore-head">バックアップの履歴（V2.00.010〜）</div>
+    <div data-i="bkHistHead" class="restore-head">バックアップの履歴（V2.00.010〜）</div>
     <ul class="pk-list" id="bkHistList"></ul>
-    <div class="restore-head">開いた履歴（V2.00.010〜）</div>
+    <div data-i="openHistHead" class="restore-head">開いた履歴（V2.00.010〜）</div>
     <ul class="pk-list" id="openHistList"></ul>
     <div class="lock-row" style="margin:8px 0 6px;">
-      <label for="devNameField" style="font-size:11.5px;">この端末の名前</label>
+      <label data-i="devName" for="devNameField" style="font-size:11.5px;">この端末の名前</label>
       <input class="data-name" id="devNameField" maxlength="30" style="width:auto;flex:1;min-width:120px;" autocomplete="off">
     </div>
     <div class="lock-row" style="margin:0 0 6px;">
-      <button class="btn" id="checkBkBtn">バックアップファイルを確かめる</button>
+      <button data-i="checkBkBtn" class="btn" id="checkBkBtn">バックアップファイルを確かめる</button>
     </div>
     <input type="file" id="checkBkFile" accept="application/json,.json,.enc.json" hidden>
     <p class="dlg-note" id="checkBkOut" style="margin:0 0 6px;"></p>
-    <p class="dlg-note" style="margin:0 0 14px;">バックアップを書き出すたび・開くたびに、端末の名前・ブラウザ・日時を残します（ブラウザからはパソコンの名前を読めないので、名前はここで付けてください。空なら Mac・Windows などと出ます）。履歴はバックアップに暗号化して入り、改ざんを見分ける印で守られます。ファイル名の最後の10文字（-obk- のあと）は、ファイルの中身の SHA-256 を、復元キーかパスキーで開ける鍵で印にしたものです。開くときに合わなければ「このファイルは改ざんの恐れがあります」と出ます。</p>
-    <div class="restore-head">自動ロックとクリップボード（この端末だけの設定）</div>
+    <p data-i="histNote" class="dlg-note" style="margin:0 0 14px;">バックアップを書き出すたび・開くたびに、端末の名前・ブラウザ・日時を残します（ブラウザからはパソコンの名前を読めないので、名前はここで付けてください。空なら Mac・Windows などと出ます）。履歴はバックアップに暗号化して入り、改ざんを見分ける印で守られます。ファイル名の最後の10文字（-obk- のあと）は、ファイルの中身の SHA-256 を、復元キーかパスキーで開ける鍵で印にしたものです。開くときに合わなければ「このファイルは改ざんの恐れがあります」と出ます。</p>
+    <div data-i="prefsHead" class="restore-head">自動ロックとクリップボード（この端末だけの設定）</div>
     <div class="lock-row" style="margin-bottom:6px;">
-      <label for="autoLockSel" style="font-size:11.5px;">何もしないとロック</label>
+      <label data-i="autoLockLabel" for="autoLockSel" style="font-size:11.5px;">何もしないとロック</label>
       <select class="data-name" id="autoLockSel" style="width:auto;">
-        <option value="1">1 分</option><option value="5">5 分</option><option value="15">15 分</option><option value="30">30 分</option><option value="0">しない</option>
+        <option value="1" data-i="min1">1 分</option><option value="5" data-i="min5">5 分</option><option value="15" data-i="min15">15 分</option><option value="30" data-i="min30">30 分</option><option value="0" data-i="never">しない</option>
       </select>
     </div>
     <div class="lock-row" style="margin-bottom:6px;">
-      <label for="clipClearSel" style="font-size:11.5px;">パスワードをコピーしたら</label>
+      <label data-i="clipLabel" for="clipClearSel" style="font-size:11.5px;">パスワードをコピーしたら</label>
       <select class="data-name" id="clipClearSel" style="width:auto;">
-        <option value="30">30 秒後に空にする</option><option value="0">空にしない</option>
+        <option value="30" data-i="clip30">30 秒後に空にする</option><option value="0" data-i="clipNever">空にしない</option>
       </select>
     </div>
-    <p class="dlg-note" style="margin:0 0 14px;">空にできるのは、この画面が前に出ているときだけです（ブラウザの決まり）。ほかのアプリに移ったまま戻らなければ、クリップボードに残ります。また、クリップボードの履歴（Windows の Win＋V・履歴アプリ・ほかの端末と共有するクリップボード）に入った分は消せません。大事なパスワードを貼り付けたら、この画面に戻るのがおすすめです。</p>
+    <p data-i="clipNote" class="dlg-note" style="margin:0 0 14px;">空にできるのは、この画面が前に出ているときだけです（ブラウザの決まり）。ほかのアプリに移ったまま戻らなければ、クリップボードに残ります。また、クリップボードの履歴（Windows の Win＋V・履歴アプリ・ほかの端末と共有するクリップボード）に入った分は消せません。大事なパスワードを貼り付けたら、この画面に戻るのがおすすめです。</p>
+    <div class="restore-head" data-i="langHead">表示の言葉（Language）</div>
+    <div class="lock-row" style="margin-bottom:14px;">
+      <select class="data-name" id="langSel" style="width:auto;" aria-label="Language">
+        <option value="ja" data-i-keep>日本語</option><option value="en">English</option>
+      </select>
+    </div>
     <p class="lock-err" id="keysErr"></p>
     <div class="lock-row" style="justify-content:flex-end;">
-      <button class="btn btn-primary" id="keysClose">閉じる</button>
+      <button data-i="close" class="btn btn-primary" id="keysClose">閉じる</button>
     </div>
   </div>
 </div>
@@ -494,15 +504,15 @@
 <!-- open-a-file dialog (passkey or recovery key) -->
 <div class="overlay hidden" id="openOverlay">
   <div class="dialog">
-    <h2 id="openTitle">このファイルを開く</h2>
-    <p class="dlg-sub" id="openSub">パスキーか復元キーで開きます。</p>
+    <h2 id="openTitle"></h2>
+    <p class="dlg-sub" id="openSub"></p>
     <div class="lock-row" id="openPasskeyRow" style="margin-bottom:12px;">
-      <button class="btn btn-primary btn-big" id="openPasskeyBtn">🔑 パスキーで開く</button>
+      <button data-i="openPasskeyBtn" class="btn btn-primary btn-big" id="openPasskeyBtn">🔑 パスキーで開く</button>
     </div>
-    <input class="lock-field" id="openRk" type="text" placeholder="復元キー（25文字）" autocomplete="off" autocapitalize="characters" spellcheck="false">
+    <input data-i-ph="rkPh" class="lock-field" id="openRk" type="text" placeholder="復元キー（25文字）" autocomplete="off" autocapitalize="characters" spellcheck="false">
     <div class="lock-row">
-      <button class="btn" id="openRkBtn">復元キーで開く</button>
-      <button class="btn btn-quiet" id="openCancel">やめる</button>
+      <button data-i="rkOpen" class="btn" id="openRkBtn">復元キーで開く</button>
+      <button data-i="cancel" class="btn btn-quiet" id="openCancel">やめる</button>
     </div>
     <p class="lock-err" id="openErr"></p>
   </div>
@@ -511,25 +521,25 @@
 <!-- recovery key reveal dialog -->
 <div class="overlay hidden" id="rkOverlay">
   <div class="dialog">
-    <h2 id="rkTitle">あなたの復元キー</h2>
+    <h2 id="rkTitle"></h2>
     <p class="dlg-sub" id="rkSub">—</p>
     <div class="pw-reveal">
       <code id="rkCode">—</code>
     </div>
     <div class="lock-row" style="margin-top:10px;">
-      <button class="btn" id="rkCopy">コピー（パスワード管理アプリへ）</button>
-      <button class="btn" id="rkPrint">印刷する</button>
+      <button data-i="rkCopy" class="btn" id="rkCopy">コピー（パスワード管理アプリへ）</button>
+      <button data-i="rkPrint" class="btn" id="rkPrint">印刷する</button>
     </div>
-    <div class="warn-block" style="margin-top:14px;">
+    <div data-i="rkWarn" class="warn-block" style="margin-top:14px;">
       <strong>この画面を閉じると、二度と表示できません。</strong>
       印刷するか、パスワード管理アプリに保存してください。<strong>バックアップファイルとは別の場所に</strong>しまい、人に見せないでください。
     </div>
-    <p class="dlg-note">控えたら、確かめのために<b>最後の5文字</b>を打ってください。</p>
-    <input class="lock-field" id="rkConfirm" type="text" placeholder="最後の5文字" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="8">
+    <p data-i="rkConfirmNote" class="dlg-note">控えたら、確かめのために<b>最後の5文字</b>を打ってください。</p>
+    <input data-i-ph="rkLast5" class="lock-field" id="rkConfirm" type="text" placeholder="最後の5文字" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="8">
     <p class="lock-err" id="rkErr"></p>
     <div class="lock-row" style="justify-content:flex-end;">
-      <button class="btn btn-quiet" id="rkCancel">やめる</button>
-      <button class="btn btn-primary" id="rkDone">控えました</button>
+      <button data-i="cancel" class="btn btn-quiet" id="rkCancel">やめる</button>
+      <button data-i="rkDone" class="btn btn-primary" id="rkDone">控えました</button>
     </div>
   </div>
 </div>
@@ -545,7 +555,22 @@
      ファイル本体を変更したら版番号を上げ、公式サイトの
      「バージョン ⇄ ハッシュ」対応表も更新すること。
      ========================================================= */
-  const APP_VERSION = 'V2.01.011';
+  const APP_VERSION = 'V2.02.000';
+
+  /* =========================================================
+     V2.02.000〜 表示の言葉（日本語 / English）
+     L(日本語, 英語) で、いまの言葉の文を選ぶ（呼んだときに選ぶので、切りかえるとすぐ変わる）。
+     言葉はこの端末だけの設定（秘密ではない）。はじめはブラウザの言葉（日本語なら日本語、それ以外は英語）。
+     保存の形・ファイルの形・暗号は、言葉では変わらない（日本語の画面で作ったファイルを英語の画面で開ける・逆も同じ）
+     ========================================================= */
+  const LANG_KEY = 'snippet-book:lang';
+  function detectLang() {
+    try { const s = localStorage.getItem(LANG_KEY); if (s === 'ja' || s === 'en') return s; } catch {}
+    const ls = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || 'ja'];
+    return /^ja\b/i.test(String(ls[0] || 'ja')) ? 'ja' : 'en';
+  }
+  let LANG = detectLang();
+  const L = (ja, en) => LANG === 'en' ? en : ja;
 
   /* =========================================================
      Storage keys
@@ -756,10 +781,10 @@
   const PBKDF2_ITER_MIN = 100000, PBKDF2_ITER_MAX = 2000000;
   function v4Params(data) {
     const iter = data.iter === undefined ? PBKDF2_ITER_OLD : data.iter;
-    if (!Number.isInteger(iter) || iter < PBKDF2_ITER_MIN || iter > PBKDF2_ITER_MAX) throw new Error('このファイルの計算回数は、このアプリでは扱えません（書きかえられたか、別のアプリのファイルです）');
+    if (!Number.isInteger(iter) || iter < PBKDF2_ITER_MIN || iter > PBKDF2_ITER_MAX) throw new Error(L('このファイルの計算回数は、このアプリでは扱えません（書きかえられたか、別のアプリのファイルです）', 'This file asks for a number of key-derivation rounds this app does not accept (it was modified, or it comes from another app)'));
     let salt;
     try { salt = new Uint8Array(b64.dec(data.salt)); } catch { salt = null; }
-    if (!salt || salt.length < 16 || salt.length > 64) throw new Error('このファイルの形がおかしいので開けません');
+    if (!salt || salt.length < 16 || salt.length > 64) throw new Error(L('このファイルの形がおかしいので開けません', 'This file is malformed and cannot be opened'));
     return { iter, salt };
   }
   async function openV4File(data, password) {
@@ -816,13 +841,13 @@
      （平文の書き出しの「パスワードを含めない」・全体の書き出しの「アプリの鍵で」など）が、ロックのあとにそのまま進んだ。
      いまは、ロックを始めてから TIMEOUT_LOCK を投げ、呼んだ処理をそこで止める（どの呼び方でも先へ進まない） */
   const TIMEOUT_LOCK = 'snippet-book:dialog-timeout-lock';
-  const timeoutLockError = () => Object.assign(new Error('何もしない時間が長かったのでロックしました'), { code: TIMEOUT_LOCK });
+  const timeoutLockError = () => Object.assign(new Error(L('何もしない時間が長かったのでロックしました', 'Locked because there was no activity for too long')), { code: TIMEOUT_LOCK });
   // 止めた処理の「できませんでした」などの知らせは出さず（1秒）、代わりにロックした理由だけを出す
   let timeoutQuietUntil = 0;
   function lockForTimeout() {
     lockNow();
     timeoutQuietUntil = Date.now() + 1000;
-    setTimeout(() => showToast('何もしない時間が長かったのでロックしました'), 1100);
+    setTimeout(() => showToast(L('何もしない時間が長かったのでロックしました', 'Locked because there was no activity for too long')), 1100);
     return timeoutLockError();
   }
   function askConfirm(msg) {
@@ -845,7 +870,7 @@
   const LOCK_STASH_WAIT_MS = 2000;  // V2.01.005〜 そのあと、残す（暗号化して書く）のを待ついちばん長い時間。過ぎても鍵は消す
   // V2.01.006〜 ロックの前の変更を保存も退避もできなかったときに、ロック画面に出す知らせ（本文は出さない）
   let lockNotice = '';
-  const LOST_MSG = 'ロックの前の変更を保護できませんでした（この端末への保存も、暗号化して残すこともできませんでした）。開いたら、最後の変更が入っているか確かめてください。';
+  const LOST_MSG = () => L('ロックの前の変更を保護できませんでした（この端末への保存も、暗号化して残すこともできませんでした）。開いたら、最後の変更が入っているか確かめてください。', 'Your last changes before locking could not be protected (they could neither be saved on this device nor kept encrypted). After unlocking, please check whether your last changes are there.');
   let staleTab = false;     // V2.01.002〜 ほかのタブで中身か鍵が変わった（このタブは保存しない）
   let viewOnly = false;   // 読み込むだけ（保存しない）モード
   let pendingRestore = null;  // 起動時に取り込む上書きバックアップ（{data} 復号済み）
@@ -879,15 +904,15 @@
 
   function uid() { return Math.random().toString(36).slice(2, 10); }
 
-  const SEED = {
+  const SEED = () => ({   // V2.02.000〜 作るときの言葉で
     name: 'snippet-book',
     sets: [
-      { name:'サンプル', items:[
-        { id:uid(), title:'サンプル：ログイン情報', user:'user@example.com', text:'サンプルのパスワード', secret:true },
+      { name:L('サンプル', 'Sample'), items:[
+        { id:uid(), title:L('サンプル：ログイン情報', 'Sample: login'), user:'user@example.com', text:L('サンプルのパスワード', 'sample-password'), secret:true },
       ]},
     ],
     active: 0,
-  };
+  });
 
   /* =========================================================
      Passkey (WebAuthn PRF)
@@ -907,16 +932,16 @@
     } catch {}
     return true;
   }
-  function deviceLabel() { return `${deviceOS()} の ${deviceBrowser()}`; }
+  function deviceLabel() { return L(`${deviceOS()} の ${deviceBrowser()}`, `${deviceBrowser()} on ${deviceOS()}`); }
   function passkeyWraps(meta) { return (meta && meta.wraps || []).filter(w => w.type === 'passkey'); }
 
   // 登録して、すぐ PRF の値を取り出す。返り値 { credId, prfSalt, prfOut }
   async function registerPasskey(vaultId, label, existing) {
-    if (!(await passkeyLikely())) throw new Error('この端末・ブラウザはパスキーで開く方式に対応していません');
+    if (!(await passkeyLikely())) throw new Error(L('この端末・ブラウザはパスキーで開く方式に対応していません', 'This device or browser does not support unlocking with a passkey'));
     const prfSalt = randomBytes(32);
     const cred = await navigator.credentials.create({ publicKey: {
-      rp: { name:'スニペット帳', id: location.hostname },
-      user: { id: new Uint8Array(b64url.dec(vaultId)), name: `スニペット帳（${book.name || 'snippet-book'}）`, displayName: `スニペット帳 ${label}` },
+      rp: { name:L('スニペット帳', 'Snippet Book'), id: location.hostname },
+      user: { id: new Uint8Array(b64url.dec(vaultId)), name: L(`スニペット帳（${book.name || 'snippet-book'}）`, `Snippet Book (${book.name || 'snippet-book'})`), displayName: L(`スニペット帳 ${label}`, `Snippet Book ${label}`) },
       challenge: randomBytes(32),
       pubKeyCredParams: [{ type:'public-key', alg:-7 }, { type:'public-key', alg:-257 }],
       authenticatorSelection: { residentKey:'required', requireResidentKey:true, userVerification:'required' },
@@ -928,7 +953,7 @@
     const ext = (cred.getClientExtensionResults && cred.getClientExtensionResults()) || {};
     const credId = b64url.enc(cred.rawId);
     if (!ext.prf || ext.prf.enabled === false) {
-      throw new Error('パスキーは作られましたが、この端末は「パスキーで開く」に必要な機能（PRF）に対応していませんでした。パスワード管理の画面から、いま作った「スニペット帳」のパスキーを消しておいてください');
+      throw new Error(L('パスキーは作られましたが、この端末は「パスキーで開く」に必要な機能（PRF）に対応していませんでした。パスワード管理の画面から、いま作った「スニペット帳」のパスキーを消しておいてください', 'A passkey was created, but this device does not support the feature needed to unlock with it (PRF). Please delete the "Snippet Book" passkey you just created in your password manager'));
     }
     let prfOut = ext.prf.results && ext.prf.results.first;
     if (!prfOut) {
@@ -941,8 +966,8 @@
 
   // 登録済みのどれかで本人確認し、使ったパスキーと PRF の値を返す
   async function getPrf(wraps) {
-    if (!passkeyBase) throw new Error('この画面ではパスキーを使えません');
-    if (!wraps.length) throw new Error('パスキーが登録されていません');
+    if (!passkeyBase) throw new Error(L('この画面ではパスキーを使えません', 'Passkeys cannot be used on this page'));
+    if (!wraps.length) throw new Error(L('パスキーが登録されていません', 'No passkey is registered'));
     const evalByCredential = {};
     wraps.forEach(w => { evalByCredential[w.credId] = { first: new Uint8Array(b64.dec(w.prfSalt)) }; });
     const cred = await navigator.credentials.get({ publicKey: {
@@ -955,7 +980,7 @@
     }});
     const ext = (cred.getClientExtensionResults && cred.getClientExtensionResults()) || {};
     const prfOut = ext.prf && ext.prf.results && ext.prf.results.first;
-    if (!prfOut) throw new Error('パスキーから鍵を取り出せませんでした（この端末は対応していない可能性があります）');
+    if (!prfOut) throw new Error(L('パスキーから鍵を取り出せませんでした（この端末は対応していない可能性があります）', 'Could not get the key from the passkey (this device may not support it)'));
     const credId = b64url.enc(cred.rawId);
     return { credId, prfOut: new Uint8Array(prfOut), wrap: wraps.find(w => w.credId === credId) };
   }
@@ -963,15 +988,15 @@
   // パスキーで DK を取り出す
   async function openWithPasskey(wraps) {
     const { prfOut, wrap } = await getPrf(wraps);
-    if (!wrap) throw new Error('このデータに登録されていないパスキーでした');
+    if (!wrap) throw new Error(L('このデータに登録されていないパスキーでした', 'That passkey is not registered for this data'));
     return openWithPrf(wrap, prfOut);
   }
 
   function passkeyErrText(e) {
-    if (e && e.name === 'NotAllowedError') return 'パスキーの確認が取り消されたか、時間切れになりました';
-    if (e && e.name === 'InvalidStateError') return 'この端末には、このデータのパスキーがもう登録されています';
-    if (e && e.name === 'SecurityError') return 'この場所（アドレス）ではパスキーを使えません';
-    return (e && e.message) || 'パスキーでうまくいきませんでした';
+    if (e && e.name === 'NotAllowedError') return L('パスキーの確認が取り消されたか、時間切れになりました', 'The passkey check was cancelled or timed out');
+    if (e && e.name === 'InvalidStateError') return L('この端末には、このデータのパスキーがもう登録されています', 'A passkey for this data is already registered on this device');
+    if (e && e.name === 'SecurityError') return L('この場所（アドレス）ではパスキーを使えません', 'Passkeys cannot be used at this address');
+    return (e && e.message) || L('パスキーでうまくいきませんでした', 'The passkey did not work');
   }
 
   /* =========================================================
@@ -984,22 +1009,163 @@
   const appEl = document.getElementById('app');
   const $ = id => document.getElementById(id);
 
+  /* V2.02.000〜 画面の部品（HTML）の英語。日本語は HTML にそのまま書いてあり、data-i のかぎでここを引く。
+     入れるのは、この表の決まった文だけ（ファイルや入力の中身は入れない） */
+  const EN_HTML = {
+    appName: 'Snippet Book',
+    lockingMsg: '🔒 Locking… (please wait a moment while saving finishes)',
+    iosTipHead: '📱 For iPhone / iPad users',
+    iosTipBody: 'Tap the Share button <span class="share-ico">⬆︎</span> below and choose "<b>Add to Home Screen</b>". It then starts like an app, and your data is less likely to be cleared. Please add it before you start using it.',
+    close: 'Close',
+    setupTitle: 'Get started',
+    setupIntro: 'Your data on this device is encrypted with a key made by the app. Normally you open it with a <b>passkey</b> (fingerprint, face, etc.); on a new device, or when a passkey is not available, you use the <b>recovery key</b>. There is no password to remember.',
+    createBtn: 'Create new',
+    startFromBackup: 'Start from a backup',
+    setupWarn: '<strong>The recovery key is like a spare house key.</strong> It is shown only once, when it is created. Print it or save it in a password manager, and keep it somewhere other than your backup files. If you lose both your passkeys and the recovery key, nobody — not even this app — can open the contents.',
+    toViewFromSetup: '📄 Just read a file, without setting up',
+    unlockTitle: 'Unlock',
+    passkeyBtn: '🔑 Unlock with passkey',
+    rkOpen: 'Open with recovery key',
+    rkPh: 'Recovery key (25 characters)',
+    restoreHead: 'Open from an overwrite backup (optional)',
+    restoreNote: 'If you choose a file and then unlock with a passkey or the recovery key, the current data on this device is deleted and the app opens with the contents of the chosen backup. Use this to bring in data from another device. If you choose nothing, the app opens with the current data as usual.',
+    restorePick: 'Choose an overwrite backup',
+    toView: '📄 Just read a file (nothing is saved)',
+    forgotBtn: 'I have neither a passkey nor the recovery key',
+    migrateTitle: 'Moving to the new method',
+    migrateIntro: 'From this version, your data is protected by a <b>passkey</b> and a <b>recovery key</b> instead of a master password. Open it once with your usual master password and it moves over automatically. After that, the master password is no longer used.',
+    masterPw: 'Master password',
+    migrateBtn: 'Open and move to the new method',
+    forgotOldBtn: 'I forgot the password',
+    viewTitle: 'Just read a file',
+    viewIntro: 'Open a file exported with "Export all, encrypted" (on a Mac, for example) and copy from it. Nothing is saved on this device. Handy on a phone.',
+    viewPick: 'Choose an encrypted file',
+    viewBack: 'Back',
+    viewWarn: 'Closing it clears the contents. You cannot edit or save (view and copy only).',
+    dataName: 'Data name',
+    modeLabel: 'Mode',
+    copy: 'Copy',
+    edit: 'Edit',
+    backupExit: '💾 Back up &amp; lock',
+    backupExitTitle: 'Make an overwrite backup, then lock',
+    keysBtn: '🔑 Keys',
+    keysBtnTitle: 'Passkeys and recovery key',
+    lockNow: '🔒 Lock',
+    lockNowTitle: 'Lock now',
+    sets: 'Sets',
+    filter: 'Filter',
+    add: 'Add',
+    addSecret: 'Add ID/password',
+    backupNow: 'Back up now',
+    exportEnc: 'Export all, encrypted',
+    exportEncTitle: 'Back up all sets, encrypted',
+    importBtn: 'Import',
+    exportSet: 'Export as plain text ▾',
+    exportSetTitle: 'Export as plain text',
+    sendSet: 'Send this set, encrypted',
+    sendSetTitle: 'Encrypt just this set to send to someone',
+    reset: 'Empty this set',
+    footerWarn: 'Data on this device is encrypted with a key made by the app, and that key is protected by your passkeys and recovery key. For backups, use <strong>"Export all, encrypted"</strong>. <strong>Files exported as plain text can be read by anyone</strong>, so be careful where you keep them (for example, not in a cloud-synced folder).',
+    sendTitle: 'Password for this set',
+    sendWarn: '<strong>Always send the file and this password by different routes.</strong> For example, the file by email and the password by phone, SMS or CP2P. Putting both in the same email defeats the purpose of encryption.',
+    sendNote: 'This password is shown only now. Once closed, it cannot be shown again (a different password is made each time). Write it down before closing.',
+    sendDone: 'I have saved it — close',
+    exitTitle: 'Backup complete',
+    exitWarn: 'An encrypted overwrite backup was exported. <strong style="color:var(--focus);">Press "Lock" to return to the lock screen.</strong> If you later start from this backup, you can return to the contents as they are now.',
+    exitNote: 'The file is saved where you chose (Chrome and Edge on a computer let you choose the location; on iPhone and iPad, choose "Save to Files" in the share sheet; other browsers save to the downloads folder). The last 10 characters of the file name are a tamper check, so please do not rename it. To sync to another device, give this file to that device and load it with "Open from an overwrite backup" on the start screen.',
+    exitDone: 'Lock',
+    shareTitle: 'Ready to save',
+    shareNote: 'Press "Choose where to save" to open the share sheet. Choose <b>"Save to Files"</b> to save it in any folder in iCloud Drive or on this iPhone (iPad). Please do not rename the file (the last 10 characters are a tamper check).',
+    cancel: 'Cancel',
+    shareDl: 'Save to Downloads',
+    shareGo: 'Choose where to save',
+    keysTitle: 'Key settings',
+    pkHead: 'Registered passkeys',
+    addPasskeyBtn: 'Register a passkey on this device',
+    mergePkBtn: 'Merge passkeys from another device',
+    mergePkNote: 'Each device keeps its own list of passkeys. To show passkeys registered on another device here too, choose a file made with "Back up &amp; lock" on that device, using "Merge passkeys from another device" here (the contents do not change). When you open from an overwrite backup, the lists are merged automatically.',
+    rkHead: 'Recovery key',
+    rkNote: '<b>If you lost it</b>, use "Replace recovery key". Backups you export from now on open with the new recovery key (backups exported earlier still open with the old one).<br><b>If someone may have seen it or it may have leaked</b>, use "Replace all keys", then make a new backup and throw away the old backups. Replacing only the recovery key cannot protect the data key from someone who has the old recovery key and an old backup.',
+    regenRkBtn: 'Replace recovery key',
+    rekeyBtn: 'Replace all keys',
+    bkHistHead: 'Backup history (V2.00.010 and later)',
+    openHistHead: 'Open history (V2.00.010 and later)',
+    devName: 'Name of this device',
+    checkBkBtn: 'Check a backup file',
+    histNote: 'Each time you export a backup or open the data, the device name, browser and date are recorded (a browser cannot read the name of your computer, so set a name here; if it is empty, Mac, Windows, etc. is shown). The history goes into backups encrypted and is protected by the tamper check. The last 10 characters of the file name (after -obk-) are a tag made from the SHA-256 of the file, with a key that only your recovery key or passkey can open. If it does not match when opening, "This file may have been tampered with" is shown.',
+    prefsHead: 'Auto-lock and clipboard (settings for this device only)',
+    autoLockLabel: 'Lock after no activity for',
+    min1: '1 min', min5: '5 min', min15: '15 min', min30: '30 min', never: 'Never',
+    clipLabel: 'After copying a password',
+    clip30: 'Clear after 30 seconds',
+    clipNever: 'Do not clear',
+    clipNote: 'Clearing only works while this page is in front (a browser rule). If you switch to another app and do not come back, the password stays on the clipboard. Copies that went into clipboard history (Windows Win+V, history apps, clipboards shared with other devices) cannot be cleared. After pasting an important password, it is best to come back to this page.',
+    langHead: 'Language',
+    openPasskeyBtn: '🔑 Open with passkey',
+    rkCopy: 'Copy (for your password manager)',
+    rkPrint: 'Print',
+    rkWarn: '<strong>Once you close this screen, it can never be shown again.</strong> Print it or save it in a password manager. Keep it <strong>somewhere other than your backup files</strong>, and do not show it to anyone.',
+    rkConfirmNote: 'After saving it, type the <b>last 5 characters</b> to confirm.',
+    rkLast5: 'Last 5 characters',
+    rkDone: 'I have saved it',
+  };
+  // 日本語は HTML にあるものを覚えておき、日本語に戻すときに使う
+  const I18N_ORIG = new Map(), I18N_ORIG_ATTR = new Map();
+  const I18N_ATTRS = [['iPh', 'placeholder'], ['iTitle', 'title'], ['iAria', 'aria-label']];
+  function applyStatic() {
+    document.documentElement.lang = LANG;
+    document.querySelectorAll('[data-i]').forEach(el => {
+      if (!I18N_ORIG.has(el)) I18N_ORIG.set(el, el.innerHTML);
+      const en = EN_HTML[el.dataset.i];
+      el.innerHTML = LANG === 'en' && en !== undefined ? en : I18N_ORIG.get(el);
+    });
+    for (const [k, attr] of I18N_ATTRS) {
+      document.querySelectorAll('[data-' + k.replace(/[A-Z]/g, c => '-' + c.toLowerCase()) + ']').forEach(el => {
+        const ok = el.dataset[k] + '|' + attr;
+        let o = I18N_ORIG_ATTR.get(el);
+        if (!o) { o = {}; I18N_ORIG_ATTR.set(el, o); }
+        if (!(ok in o)) o[ok] = el.getAttribute(attr) || '';
+        const en = EN_HTML[el.dataset[k]];
+        el.setAttribute(attr, LANG === 'en' && en !== undefined ? en : o[ok]);
+      });
+    }
+    document.querySelectorAll('[data-lang]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lang === LANG)));
+    const ls = $('langSel'); if (ls) ls.value = LANG;
+  }
+  // 言葉を切りかえる。いま出ている画面の、スクリプトが入れた文も入れ直す（中身・入力・選んだファイルはそのまま）
+  function setLang(l) {
+    if ((l !== 'ja' && l !== 'en') || l === LANG) return;
+    LANG = l;
+    try { localStorage.setItem(LANG_KEY, l); } catch {}
+    applyStatic();
+    if (!pendingRestore) $('restoreFileName').textContent = L('選択なし', 'None selected');
+    if (!HAS_LOCKS) ['setupErr','unlockErr','migrateErr'].forEach(id => { const el = $(id); if (el) el.textContent = NO_LOCKS_MSG(); });
+    if (!$('unlockCard').classList.contains('hidden') && vault) $('unlockNote').textContent = unlockNoteText();
+    if (!appEl.classList.contains('hidden') && !lockingNow) {
+      appLabels();
+      render();
+      if (!viewOnly) updateBackupBanner();
+      if (!$('keysOverlay').classList.contains('hidden')) renderKeys();
+    }
+  }
+  document.querySelectorAll('[data-lang]').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
+
   async function loadJSON(k) {
     try { const r = await store.get(k); return r && r.value ? JSON.parse(r.value) : null; } catch { return null; }
   }
   /* V2.00.008〜 金庫（鍵の情報＋暗号化した本体）は1つの項目に1回で書く。
      書けなかったら何も変えずに知らせる（呼ぶ側は、書けてから vault・鍵・画面を切りかえる） */
-  const SAVE_FAIL_MSG = 'この端末に保存できませんでした（保存の容量がいっぱいかもしれません）。何も変えていません';
+  const SAVE_FAIL_MSG = () => L('この端末に保存できませんでした（保存の容量がいっぱいかもしれません）。何も変えていません', 'Could not save on this device (storage may be full). Nothing was changed');
   /* V2.01.002〜 古い状態で上書きしない（チャッピーさんの再点検）。
      - 金庫に更新番号 rev を持たせ、書く直前に「保存されている番号」と「もとにした番号」を比べる。ちがえば書かない
        （ほかのタブが先に書いた・このタブの古い処理があとから終わった、のどちらも止まる）
      - 書くのは1つずつ（このタブの中は順番待ち、タブをまたいでは Web Locks）
      - make は「いまの vault をもとに next を作る」関数。順番が来てから作るので、途中のほかの保存を消さない。null なら書かない
      - 書けたら vault を書いた中身に切りかえる。onWritten は書けた直後に、await をはさまずに呼ぶ */
-  const STALE_MSG = 'ほかのタブ（ウィンドウ）で、この端末の保存が先に変わっていました。古い内容で上書きしないように、何も変えていません。いったんロックして開き直してください';
+  const STALE_MSG = () => L('ほかのタブ（ウィンドウ）で、この端末の保存が先に変わっていました。古い内容で上書きしないように、何も変えていません。いったんロックして開き直してください', 'The saved data on this device was changed first in another tab (window). To avoid overwriting it with older content, nothing was changed. Please lock and unlock again');
   /* V2.01.003〜 Web Locks（タブをまたいで1つずつにするしくみ）が無いブラウザでは、2つのタブが同時に書けてしまうので、書かない（読むだけ） */
   const HAS_LOCKS = !!(navigator.locks && typeof navigator.locks.request === 'function');
-  const NO_LOCKS_MSG = 'このブラウザは古いので、この端末に安全に保存できません（読むだけはできます）。ブラウザを新しくしてください（Safari 15.4 以降・Chrome・Edge など）';
+  const NO_LOCKS_MSG = () => L('このブラウザは古いので、この端末に安全に保存できません（読むだけはできます）。ブラウザを新しくしてください（Safari 15.4 以降・Chrome・Edge など）', 'This browser is too old to save safely on this device (you can still read). Please update your browser (Safari 15.4 or later, Chrome, Edge, etc.)');
   let vaultQueue = Promise.resolve();
   function storedRev() {
     return store.get(META5_KEY).then(r => { const c = r && r.value ? JSON.parse(r.value) : null; return c && Number.isInteger(c.rev) ? c.rev : 0; }, () => 0);
@@ -1009,16 +1175,16 @@
       const next = typeof make === 'function' ? make() : make;
       if (!next) return null;
       const want = Number.isInteger(next.rev) ? next.rev : 0;
-      if ((await storedRev()) !== want) throw new Error(STALE_MSG);
+      if ((await storedRev()) !== want) throw new Error(STALE_MSG());
       const out = { ...next, rev: want + 1 };
       try { await store.set(META5_KEY, JSON.stringify(out)); }
-      catch { throw new Error(SAVE_FAIL_MSG); }
+      catch { throw new Error(SAVE_FAIL_MSG()); }
       vault = out;
       if (onWritten) onWritten(out);
       if (out.data) dropLegacyData();
       return out;
     };
-    const locked = () => HAS_LOCKS ? navigator.locks.request('snippet-book-vault', run) : Promise.reject(new Error(NO_LOCKS_MSG));
+    const locked = () => HAS_LOCKS ? navigator.locks.request('snippet-book-vault', run) : Promise.reject(new Error(NO_LOCKS_MSG()));
     const p = vaultQueue.then(locked, locked);
     vaultQueue = p.catch(() => {});
     return p;
@@ -1051,11 +1217,11 @@
   function deviceName() { try { return (localStorage.getItem(DEVNAME_KEY) || '').trim().slice(0, 30); } catch { return ''; } }
   function deviceOS() {
     return /iPhone/.test(ua) ? 'iPhone' : /iPad/.test(ua) || isIOS ? 'iPad'
-      : /Android/.test(ua) ? 'Android' : /Windows/.test(ua) ? 'Windows' : /Mac/.test(ua) ? 'Mac' : 'この端末';
+      : /Android/.test(ua) ? 'Android' : /Windows/.test(ua) ? 'Windows' : /Mac/.test(ua) ? 'Mac' : L('この端末', 'this device');
   }
   function deviceBrowser() {
     return /Edg\//.test(ua) ? 'Edge' : /Firefox\//.test(ua) ? 'Firefox'
-      : /(Chrome|CriOS)\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : 'ブラウザ';
+      : /(Chrome|CriOS)\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : L('ブラウザ', 'browser');
   }
   function histEntry(kind, how) { return { at: Date.now(), device: deviceName() || deviceOS(), browser: deviceBrowser(), kind, ...(how ? { how } : {}) }; }
   const isBackupKind = k => k === 'obk' || k === 'bk';
@@ -1095,7 +1261,7 @@
      auth：'ok' 印が合う / 'none' 印が無い（V2.00.009 まで）/ 'bad' 書きかえられている
      name：true ファイル名の印が合う / false 合わない / null 名前に印が無い
      ファイル名に印があるのに auth が無いのも、印を消した書きかえとみなす */
-  const TAMPER_MSG = 'このファイルは改ざんの恐れがあります（中身か鍵の情報が書きかえられています）。取りこみませんでした';
+  const TAMPER_MSG = () => L('このファイルは改ざんの恐れがあります（中身か鍵の情報が書きかえられています）。取りこみませんでした', 'This file may have been tampered with (its contents or key information were modified). It was not imported');
   async function inspectV5(dk, file, fname, text) {
     let auth = await checkV5Auth(dk, file);
     const tag = nameTagOf(fname);
@@ -1118,18 +1284,22 @@
   // ファイル名の印が合わないときは、知らせて続けるかを聞く（中身の印は合っているので、名前を変えたか、別のファイルの名前）
   function nameTagOkOrAsk(r) {
     if (r.name !== false) return true;
-    return askConfirm('このファイルは改ざんの恐れがあります。\n\nファイル名の印（-obk- のあとの10文字）が、ファイルの中身と合いません。ファイルの中身か名前が書きかえられています。\n\n心当たりが無ければ「キャンセル」を押して、ほかのバックアップを使ってください。それでも開きますか？');
+    return askConfirm(L('このファイルは改ざんの恐れがあります。\n\nファイル名の印（-obk- のあとの10文字）が、ファイルの中身と合いません。ファイルの中身か名前が書きかえられています。\n\n心当たりが無ければ「キャンセル」を押して、ほかのバックアップを使ってください。それでも開きますか？', 'This file may have been tampered with.\n\nThe file-name tag (the 10 characters after -obk-) does not match the contents of the file. Either the contents or the name were changed.\n\nIf you do not know why, press "Cancel" and use another backup. Open it anyway?'));
+  }
+  // V2.02.000〜 日付（どちらの言葉でも同じ形）と、端末・ブラウザ（言葉で語順が変わる）に分ける
+  function histDate(at) {
+    const d = new Date(at), p = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}/${p(d.getMonth()+1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
   }
   function histText(h) {
-    const d = new Date(h.at), p = n => String(n).padStart(2, '0');
-    return `${d.getFullYear()}/${p(d.getMonth()+1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}　${h.device} の ${h.browser}`;
+    return histDate(h.at) + L(`　${h.device} の ${h.browser}`, `  ${h.browser} on ${h.device}`);
   }
-  const HIST_WORD = { obk:'上書き用バックアップ', bk:'バックアップ', open:'開いた', view:'閲覧専用で開いた' };
-  function histWhat(h) { return HIST_WORD[h.kind] + (h.how === 'pk' ? '（パスキー）' : h.how === 'rk' ? '（復元キー）' : ''); }
+  const HIST_WORD = () => ({ obk:L('上書き用バックアップ', 'Overwrite backup'), bk:L('バックアップ', 'Backup'), open:L('開いた', 'Opened'), view:L('閲覧専用で開いた', 'Opened view-only') });
+  function histWhat(h) { return HIST_WORD()[h.kind] + (h.how === 'pk' ? L('（パスキー）', ' (passkey)') : h.how === 'rk' ? L('（復元キー）', ' (recovery key)') : ''); }
   function fileOrigin(r) {
     if (!r || r.auth !== 'ok') return '';
     const last = r.history.filter(h => isBackupKind(h.kind)).pop();
-    return last ? `（${histText(last)} で書き出したもの・改ざんの印が合いました）` : '（改ざんの印が合いました）';
+    return last ? L(`（${histText(last)} で書き出したもの・改ざんの印が合いました）`, `(exported ${histText(last)}; the tamper check passed)`) : L('（改ざんの印が合いました）', ' (the tamper check passed)');
   }
   // 計算（暗号化）をすませてから、1回で書き、書けたら vault・鍵・本体を切りかえる。ep を渡すと、ロックされていたら書かずに false
   async function commitVault(meta, dk, content, ep) {
@@ -1165,7 +1335,7 @@
     const vl = $('verLock'); if (vl) vl.textContent = APP_VERSION;
     if (!HAS_LOCKS) {   // V2.01.003〜 書けないブラウザ：作る・バックアップから始めるを止め、知らせる
       ['createBtn','startFromBackup'].forEach(id => { const b = $(id); if (b) b.disabled = true; });
-      setTimeout(() => { ['setupErr','unlockErr','migrateErr'].forEach(id => { const el = $(id); if (el) el.textContent = NO_LOCKS_MSG; }); }, 0);
+      setTimeout(() => { ['setupErr','unlockErr','migrateErr'].forEach(id => { const el = $(id); if (el) el.textContent = NO_LOCKS_MSG(); }); }, 0);
     }
     const vm = $('verMain'); if (vm) vm.textContent = APP_VERSION;
     // iOS Safari かつ未インストール(ホーム画面に追加していない)なら案内を表示
@@ -1189,18 +1359,24 @@
     }
   }
 
+  // V2.02.000〜 言葉を切りかえたときにも入れ直す
+  function unlockNoteText() {
+    const pks = passkeyWraps(vault);
+    const canPk = passkeyBase && pks.length > 0;
+    return canPk
+    ? L(`登録済みのパスキー：${pks.map(w => w.label).join('、')}`, `Registered passkeys: ${pks.map(w => w.label).join(', ')}`)
+    : !passkeyBase
+      ? L('この開き方（アドレス）ではパスキーを使えません。復元キーで開いてください。', 'Passkeys cannot be used at this address. Please unlock with your recovery key.')
+      : L('まだパスキーが登録されていません。復元キーで開いたあと、「🔑 鍵」で登録できます。', 'No passkey is registered yet. After unlocking with your recovery key, you can register one under "🔑 Keys".');
+  }
   function showUnlock() {
     showCard(unlockCard);
-    $('unlockErr').textContent = lockNotice;   // V2.01.006〜 保護できなかった変更の知らせ（ふだんは空）
+    $('unlockErr').textContent = lockNotice ? LOST_MSG() : '';   // V2.01.006〜 保護できなかった変更の知らせ（ふだんは空）
     $('rkField').value = '';
     const pks = passkeyWraps(vault);
     const canPk = passkeyBase && pks.length > 0;
     $('passkeyRow').classList.toggle('hidden', !canPk);
-    $('unlockNote').textContent = canPk
-      ? `登録済みのパスキー：${pks.map(w => w.label).join('、')}`
-      : !passkeyBase
-        ? 'この開き方（アドレス）ではパスキーを使えません。復元キーで開いてください。'
-        : 'まだパスキーが登録されていません。復元キーで開いたあと、「🔑 鍵」で登録できます。';
+    $('unlockNote').textContent = unlockNoteText();
     if (!canPk && !isTouch) setTimeout(() => $('rkField').focus(), 50);
   }
 
@@ -1210,18 +1386,18 @@
   });
 
   /* ---------- 復元キーを見せる（控えたことを確かめる） ---------- */
-  const RK_TEXT = {
-    new:     ['あなたの復元キー', '新しい端末で開くときや、パスキーが使えないときに使います。'],
-    migrate: ['あなたの復元キー', 'これからはマスターパスワードの代わりにこの復元キーを使います（パスキーが使えないときだけ）。'],
-    regen:   ['新しい復元キー', '「控えました」を押すと、古い復元キーではこの端末のデータを開けなくなります。ただし前に書き出したバックアップは古い復元キーで開けるままです。漏れたかもしれないときは「鍵をすべて作り直す」を使ってください。'],
-    legacy:  ['新しい復元キー', '前の版のバックアップには改ざんを見分ける印が無いので、ファイルの鍵の情報は使わず、新しい鍵と復元キーで始めます。前の復元キーは使いません。'],
-    rekey:   ['新しい復元キー', '鍵をすべて作り直します。登録したパスキーは外れるので、あとで登録し直してください。'],
-  };
+  const RK_TEXT = () => ({   // V2.02.000〜 見せるときの言葉で
+    new:     [L('あなたの復元キー', 'Your recovery key'), L('新しい端末で開くときや、パスキーが使えないときに使います。', 'Use it on a new device, or when a passkey is not available.')],
+    migrate: [L('あなたの復元キー', 'Your recovery key'), L('これからはマスターパスワードの代わりにこの復元キーを使います（パスキーが使えないときだけ）。', 'From now on, use this recovery key instead of your master password (only when a passkey is not available).')],
+    regen:   [L('新しい復元キー', 'New recovery key'), L('「控えました」を押すと、古い復元キーではこの端末のデータを開けなくなります。ただし前に書き出したバックアップは古い復元キーで開けるままです。漏れたかもしれないときは「鍵をすべて作り直す」を使ってください。', 'When you press "I have saved it", the old recovery key will no longer open the data on this device. Backups you exported earlier can still be opened with the old recovery key. If it may have leaked, use "Replace all keys" instead.')],
+    legacy:  [L('新しい復元キー', 'New recovery key'), L('前の版のバックアップには改ざんを見分ける印が無いので、ファイルの鍵の情報は使わず、新しい鍵と復元キーで始めます。前の復元キーは使いません。', 'Backups from older versions have no tamper check, so the key information in the file is not used. You start with a new key and a new recovery key. The previous recovery key will not be used.')],
+    rekey:   [L('新しい復元キー', 'New recovery key'), L('鍵をすべて作り直します。登録したパスキーは外れるので、あとで登録し直してください。', 'All keys will be replaced. Registered passkeys will be removed, so please register them again afterwards.')],
+  });
   let rkPrintName = '';
   let rkCloser = null, openCloser = null;   // V2.00.005〜 ロックのときに、開いている途中の画面を閉じて中身を消す
   function showRecoveryKey(rk, kind, name) {
     rkPrintName = name || book.name || 'snippet-book';
-    const [title, sub] = RK_TEXT[kind] || RK_TEXT.new;
+    const [title, sub] = RK_TEXT()[kind] || RK_TEXT().new;
     $('rkTitle').textContent = title;
     $('rkSub').textContent = sub;
     $('rkCode').textContent = formatRecoveryKey(rk);
@@ -1240,29 +1416,34 @@
       $('rkCopy').onclick = async () => {
         const ok = await writeClip(formatRecoveryKey(rk));
         if (ok) scheduleClipClear();
-        $('rkCopy').textContent = ok ? 'コピーしました' : 'コピー不可';
-        setTimeout(() => { $('rkCopy').textContent = 'コピー（パスワード管理アプリへ）'; }, 1600);
+        $('rkCopy').textContent = ok ? L('コピーしました', 'Copied') : L('コピー不可', 'Cannot copy');
+        setTimeout(() => { $('rkCopy').textContent = L('コピー（パスワード管理アプリへ）', 'Copy (for your password manager)'); }, 1600);
       };
       $('rkPrint').onclick = () => printRecoveryKey(rk);
       $('rkDone').onclick = () => {
         const typed = String($('rkConfirm').value).toUpperCase().replace(/[\s\-]/g,'').replace(/O/g,'0').replace(/[IL]/g,'1');
-        if (typed !== rk.slice(-5)) { $('rkErr').textContent = '最後の5文字が合いません。控えた復元キーを見て打ってください'; return; }
+        if (typed !== rk.slice(-5)) { $('rkErr').textContent = L('最後の5文字が合いません。控えた復元キーを見て打ってください', 'The last 5 characters do not match. Please type them from the recovery key you saved'); return; }
         close(true);
       };
       $('rkConfirm').onkeydown = e => { if (e.key === 'Enter') $('rkDone').onclick(); };
       $('rkCancel').onclick = () => {
-        if (askConfirm('やめますか？ この復元キーは使われません。')) close(false);
+        if (askConfirm(L('やめますか？ この復元キーは使われません。', 'Cancel? This recovery key will not be used.'))) close(false);
       };
     });
   }
   function printRecoveryKey(rk) {
     const pa = $('printArea');
     const d = new Date();
-    pa.innerHTML = `<h1>スニペット帳 復元キー</h1>
+    const ymd = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    pa.innerHTML = L(`<h1>スニペット帳 復元キー</h1>
       <p class="pa-key">${esc(formatRecoveryKey(rk))}</p>
       <p>データ名：${esc(rkPrintName)}　／　作成日：${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日　／　${esc(location.host || 'ローカル')}</p>
       <p>新しい端末で開くとき、パスキーが使えないときに使います。</p>
-      <p>この紙は人に見せず、バックアップファイルとは別の場所にしまってください。</p>`;
+      <p>この紙は人に見せず、バックアップファイルとは別の場所にしまってください。</p>`, `<h1>Snippet Book recovery key</h1>
+      <p class="pa-key">${esc(formatRecoveryKey(rk))}</p>
+      <p>Data name: ${esc(rkPrintName)}  /  Created: ${ymd}  /  ${esc(location.host || 'local')}</p>
+      <p>Use it on a new device, or when a passkey is not available.</p>
+      <p>Do not show this paper to anyone, and keep it in a different place from your backup files.</p>`);
     document.body.classList.add('printing');
     const done = () => { document.body.classList.remove('printing'); pa.innerHTML = ''; window.removeEventListener('afterprint', done); };
     window.addEventListener('afterprint', done);
@@ -1273,8 +1454,8 @@
   /* ---------- パスキーか復元キーで、ファイルの鍵を開ける ---------- */
   function askOpen(wraps, title, sub) {
     const pks = (wraps || []).filter(w => w.type === 'passkey');
-    $('openTitle').textContent = title || 'このファイルを開く';
-    $('openSub').textContent = sub || (pks.length && passkeyBase ? 'パスキーか復元キーで開きます。' : '復元キーで開きます。');
+    $('openTitle').textContent = title || L('このファイルを開く', 'Open this file');
+    $('openSub').textContent = sub || (pks.length && passkeyBase ? L('パスキーか復元キーで開きます。', 'Open it with a passkey or the recovery key.') : L('復元キーで開きます。', 'Open it with the recovery key.'));
     $('openPasskeyRow').classList.toggle('hidden', !(pks.length && passkeyBase));
     $('openRk').value = ''; $('openErr').textContent = '';
     $('openOverlay').classList.remove('hidden');
@@ -1289,14 +1470,14 @@
       };
       openCloser = close;
       $('openPasskeyBtn').onclick = async () => {
-        $('openErr').textContent = 'パスキーを確かめています…';
+        $('openErr').textContent = L('パスキーを確かめています…', 'Checking the passkey…');
         try { close(await openWithPasskey(pks)); }
         catch (e) { $('openErr').textContent = passkeyErrText(e); }
       };
       $('openRkBtn').onclick = async () => {
-        $('openErr').textContent = '確かめています…';
+        $('openErr').textContent = L('確かめています…', 'Checking…');
         const dk = await openWithRecovery(wraps, $('openRk').value);
-        if (dk) close(dk); else $('openErr').textContent = '復元キーが違います（25文字・区切りの - はあってもなくてもかまいません）';
+        if (dk) close(dk); else $('openErr').textContent = L('復元キーが違います（25文字・区切りの - はあってもなくてもかまいません）', 'Wrong recovery key (25 characters; the - separators are optional)');
       };
       $('openRk').onkeydown = e => { if (e.key === 'Enter') $('openRkBtn').onclick(); };
       $('openCancel').onclick = () => close(null);
@@ -1305,12 +1486,12 @@
 
   /* ---------- パスキーを登録する ---------- */
   async function addPasskey() {
-    if (!dkRaw || !vault) throw new Error('先にロックを解除してください');
-    const label = (askPrompt('このパスキーの名前（どの端末か分かるように）', deviceLabel()) || '').trim();
+    if (!dkRaw || !vault) throw new Error(L('先にロックを解除してください', 'Please unlock first'));
+    const label = (askPrompt(L('このパスキーの名前（どの端末か分かるように）', 'Name for this passkey (so you can tell which device it is)'), deviceLabel()) || '').trim();
     if (!label) return false;
     const ep = lockEpoch;
     const r = await registerPasskey(vault.vaultId, label, passkeyWraps(vault));
-    const stopped = () => new Error('登録の途中でロックされたので、登録をやめました（端末に作られたパスキーは、パスワード管理の画面から消してください）');
+    const stopped = () => new Error(L('登録の途中でロックされたので、登録をやめました（端末に作られたパスキーは、パスワード管理の画面から消してください）', 'The app locked during registration, so registration was cancelled (please delete the passkey created on the device in your password manager)'));
     if (lockedSince(ep) || !dkRaw) { r.prfOut.fill(0); throw stopped(); }
     const w = await makePasskeyWrap(dkRaw, r.prfOut, r.credId, r.prfSalt, label);
     r.prfOut.fill(0);
@@ -1322,22 +1503,22 @@
     });
     if (lockedSince(ep)) return true;   // V2.01.008〜 書いたあとにロック → 登録はできた。画面には出さない（自己点検 G）
     markNeedsBackup();
-    showToast('パスキーを登録しました');
-    setStatus(`パスキー「${label}」を登録しました。次からは「🔑 パスキーで開く」で開けます`);
+    showToast(L('パスキーを登録しました', 'Passkey registered'));
+    setStatus(L(`パスキー「${label}」を登録しました。次からは「🔑 パスキーで開く」で開けます`, `Registered the passkey "${label}". Next time you can use "🔑 Unlock with passkey"`));
     return true;
   }
   async function offerPasskey(message) {
     if (!(await passkeyLikely())) {
-      setStatus('この端末・ブラウザはパスキーに対応していないため、開くときは復元キーを使います');
+      setStatus(L('この端末・ブラウザはパスキーに対応していないため、開くときは復元キーを使います', 'This device or browser does not support passkeys, so use the recovery key to unlock'));
       return;
     }
-    if (!askConfirm(message || 'この端末でパスキーを登録しますか？\n\n次からは指紋・顔など（端末のロック解除と同じ方法）で開けます。')) {
-      setStatus('パスキーはあとから「🔑 鍵」で登録できます');
+    if (!askConfirm(message || L('この端末でパスキーを登録しますか？\n\n次からは指紋・顔など（端末のロック解除と同じ方法）で開けます。', 'Register a passkey on this device?\n\nNext time you can unlock with your fingerprint, face, etc. (the same way you unlock your device).'))) {
+      setStatus(L('パスキーはあとから「🔑 鍵」で登録できます', 'You can register a passkey later under "🔑 Keys"'));
       return;
     }
     const ep = lockEpoch;
     try { await addPasskey(); }
-    catch (e) { if (!lockedSince(ep)) { setStatus(passkeyErrText(e), true); showToast('パスキーを登録できませんでした', true); } }
+    catch (e) { if (!lockedSince(ep)) { setStatus(passkeyErrText(e), true); showToast(L('パスキーを登録できませんでした', 'Could not register the passkey'), true); } }
   }
   function markNeedsBackup() {
     dirtySinceBackup = true;
@@ -1350,9 +1531,9 @@
     const errEl = $('setupErr');
     errEl.textContent = '';
     try {
-      if (await startNewVault(normalize(SEED), 'new')) await offerPasskey();
+      if (await startNewVault(normalize(SEED()), 'new')) await offerPasskey();
     } catch (e) {
-      errEl.textContent = '作れませんでした：' + e.message;
+      errEl.textContent = L('作れませんでした：', 'Could not create: ') + e.message;
     }
   }
   // 新しい DK と復元キーで金庫を作り、中身を保存して開く。復元キーを控えなければ何もしない
@@ -1378,16 +1559,16 @@
     const file = e.target.files[0]; e.target.value = '';
     if (!file) return;
     const errEl = $('setupErr');
-    errEl.textContent = 'ファイルを確認しています…';
+    errEl.textContent = L('ファイルを確認しています…', 'Checking the file…');
     try {
       const { data, text } = await readJSONFileT(file);
       if (isV5File(data)) {
-        const dk = await askOpen(data.wraps, 'バックアップから始める', file.name);
+        const dk = await askOpen(data.wraps, L('バックアップから始める', 'Start from a backup'), file.name);
         if (!dk) { errEl.textContent = ''; return; }
         const content = await decryptJSON(await importDK(dk), data);
         const r = await inspectV5(dk, data, file.name, text);   // V2.00.010〜 改ざんを確かめる
-        if (r.auth === 'bad') { dk.fill(0); errEl.textContent = TAMPER_MSG; return; }
-        if (!nameTagOkOrAsk(r)) { dk.fill(0); errEl.textContent = '取りこみをやめました'; return; }
+        if (r.auth === 'bad') { dk.fill(0); errEl.textContent = TAMPER_MSG(); return; }
+        if (!nameTagOkOrAsk(r)) { dk.fill(0); errEl.textContent = L('取りこみをやめました', 'Import cancelled'); return; }
         if (r.auth !== 'ok') {
           // V2.00.011〜 印の無いファイル（V2.00.009 まで・印を消した書きかえも同じ形）は、外側の鍵の情報（wraps・revoked）を信用しない。
           // 開けた中身だけを使い、新しい鍵と復元キーで始める（パスキーは登録し直す）
@@ -1395,7 +1576,7 @@
           errEl.textContent = '';
           if (await startNewVault(limitBook(normalize(toBook(content, file.name))), 'legacy')) {
             markNeedsBackup();
-            setStatus('前の版のバックアップから、中身だけを新しい鍵で始めました。パスキーを登録し直し、新しい形でバックアップを取り直してください');
+            setStatus(L('前の版のバックアップから、中身だけを新しい鍵で始めました。パスキーを登録し直し、新しい形でバックアップを取り直してください', 'Started with only the contents of an older backup, using a new key. Please register your passkeys again and make a new backup'));
             await offerPasskey();
           }
           return;
@@ -1404,29 +1585,29 @@
         await commitVault(meta, dk, limitBook(normalize(toBook(content, file.name))));   // V2.00.008〜 1回で書く
         errEl.textContent = '';
         enterApp();
-        setStatus('バックアップから始めました' + fileOrigin(r));
-        await offerPasskey('この端末でパスキーを登録しますか？\n\n（同期したパスキーでいま開けた場合は、登録しなくても次からパスキーで開けます）');
+        setStatus(L('バックアップから始めました', 'Started from the backup') + fileOrigin(r));
+        await offerPasskey(L('この端末でパスキーを登録しますか？\n\n（同期したパスキーでいま開けた場合は、登録しなくても次からパスキーで開けます）', 'Register a passkey on this device?\n\n(If you just unlocked with a synced passkey, you can keep using it without registering a new one)'));
       } else if (isV4File(data)) {
         const content = await decryptImport(data);
         if (content === null) { errEl.textContent = ''; return; }
         errEl.textContent = '';
         if (await startNewVault(limitBook(normalize(toBook(content, file.name))), 'migrate')) {
           markNeedsBackup();
-          setStatus('古い形のバックアップから始めました。新しい形でバックアップを取り直してください');
+          setStatus(L('古い形のバックアップから始めました。新しい形でバックアップを取り直してください', 'Started from an old-format backup. Please make a new backup in the current format'));
           await offerPasskey();
         }
       } else {
-        errEl.textContent = '暗号化したバックアップファイルを選んでください';
+        errEl.textContent = L('暗号化したバックアップファイルを選んでください', 'Please choose an encrypted backup file');
       }
     } catch (err) {
-      errEl.textContent = '開けませんでした：' + err.message;
+      errEl.textContent = L('開けませんでした：', 'Could not open: ') + err.message;
     }
   });
 
   /* ---------- ふだん開く ---------- */
   $('passkeyBtn').addEventListener('click', async () => {
     const errEl = $('unlockErr');
-    errEl.textContent = 'パスキーを確かめています…';
+    errEl.textContent = L('パスキーを確かめています…', 'Checking the passkey…');
     try { await finishUnlock(await openWithPasskey(passkeyWraps(vault)), 'pk'); }
     catch (e) { errEl.textContent = passkeyErrText(e); }
   });
@@ -1434,9 +1615,9 @@
   $('rkField').addEventListener('keydown', e => { if (e.key === 'Enter') unlockWithRk(); });
   async function unlockWithRk() {
     const errEl = $('unlockErr');
-    errEl.textContent = '確かめています…';
+    errEl.textContent = L('確かめています…', 'Checking…');
     const dk = await openWithRecovery(vault.wraps, $('rkField').value);
-    if (!dk) { errEl.textContent = '復元キーが違います（25文字・区切りの - はあってもなくてもかまいません）'; return; }
+    if (!dk) { errEl.textContent = L('復元キーが違います（25文字・区切りの - はあってもなくてもかまいません）', 'Wrong recovery key (25 characters; the - separators are optional)'); return; }
     $('rkField').value = '';
     await finishUnlock(dk, 'rk');
   }
@@ -1445,48 +1626,48 @@
     const errEl = $('unlockErr');
     if (pendingRestore) {
       // 上書きバックアップから起動：前回データを削除して置き換える
-      const ok = askConfirm('前回のデータは削除され、選んだ上書きバックアップの内容で置き換わります。\n\nよろしいですか？');
-      if (!ok) { errEl.textContent = '取り込みを中止しました。「上書き用バックアップ」の選択を外すか、そのまま開くと通常起動します。'; dk.fill(0); return; }
+      const ok = askConfirm(L('前回のデータは削除され、選んだ上書きバックアップの内容で置き換わります。\n\nよろしいですか？', 'The current data will be deleted and replaced with the contents of the overwrite backup you chose.\n\nContinue?'));
+      if (!ok) { errEl.textContent = L('取り込みを中止しました。「上書き用バックアップ」の選択を外すか、そのまま開くと通常起動します。', 'Import cancelled. To open normally, remove the overwrite backup you chose, or just unlock again.'); dk.fill(0); return; }
       const wrapper = pendingRestore.file;
       let restored, useDk = dk, useVault = vault, insp = null, note = '';
       try {
         if (isV5File(wrapper)) {
           if (wrapper.vaultId !== vault.vaultId) {
             // 別の金庫のバックアップ → そのファイルの鍵で開き、鍵ごと置き換える
-            useDk = await askOpen(wrapper.wraps, '上書きバックアップを開く', '別の鍵で作られたバックアップです。そのときのパスキーか復元キーで開いてください。');
-            if (!useDk) { errEl.textContent = '取り込みを中止しました。'; dk.fill(0); return; }
+            useDk = await askOpen(wrapper.wraps, L('上書きバックアップを開く', 'Open the overwrite backup'), L('別の鍵で作られたバックアップです。そのときのパスキーか復元キーで開いてください。', 'This backup was made with a different key. Please open it with the passkey or recovery key from that time.'));
+            if (!useDk) { errEl.textContent = L('取り込みを中止しました。', 'Import cancelled.'); dk.fill(0); return; }
             useVault = { version:5, vaultId:wrapper.vaultId, wraps:wrapper.wraps, revoked:wrapper.revoked };
           }
           restored = await decryptJSON(await importDK(useDk), wrapper);
           insp = await inspectV5(useDk, wrapper, pendingRestore.fname, pendingRestore.text);   // V2.00.010〜 改ざんを確かめる
-          if (insp.auth === 'bad') throw new Error(TAMPER_MSG);
+          if (insp.auth === 'bad') throw new Error(TAMPER_MSG());
           if (wrapper.vaultId !== vault.vaultId && insp.auth === 'ok') {
             useVault = { ...useVault, history: insp.history };
           } else if (wrapper.vaultId !== vault.vaultId) {
             // V2.00.011〜 印の無いファイルの鍵の情報（wraps・revoked）は使わない。この端末のいまの鍵のまま、中身だけ入れかえる
             if (useDk !== dk) useDk.fill(0);
             useDk = dk; useVault = vault;
-            note = '（前の版で書き出したファイルなので、中身だけを取りこみ、鍵はこの端末のいまのままにしました）';
+            note = L('（前の版で書き出したファイルなので、中身だけを取りこみ、鍵はこの端末のいまのままにしました）', ' (the file was exported by an older version, so only its contents were imported and the keys on this device were kept)');
           } else if (insp.auth === 'ok') {   // 同じ金庫で印が合う：パスキーの一覧と履歴を合わせる
             const m = mergePasskeys(vault, wrapper);
             useVault = { ...vault, wraps: m.wraps, revoked: m.revoked, history: mergeHistory(vault.history, insp.history) };
           } else {
-            note = '（V2.00.009 までに書き出したファイルなので、パスキーの一覧は合わせていません）';
+            note = L('（V2.00.009 までに書き出したファイルなので、パスキーの一覧は合わせていません）', ' (the file was exported by V2.00.009 or earlier, so the passkey list was not merged)');
           }
         } else {
           restored = await decryptImport(wrapper);     // 古い形（V1）のバックアップ：パスワードを聞く
-          if (restored === null) { errEl.textContent = '取り込みを中止しました。'; dk.fill(0); return; }
+          if (restored === null) { errEl.textContent = L('取り込みを中止しました。', 'Import cancelled.'); dk.fill(0); return; }
         }
       } catch (e) {
         if (useDk !== dk) useDk.fill(0);
         dk.fill(0);
-        errEl.textContent = e && e.message === TAMPER_MSG ? TAMPER_MSG : 'このバックアップを開けませんでした（鍵が違う可能性があります）。';
+        errEl.textContent = e && e.message === TAMPER_MSG() ? TAMPER_MSG() : L('このバックアップを開けませんでした（鍵が違う可能性があります）。', 'Could not open this backup (the key may be different).');
         return;
       }
       if (insp && !nameTagOkOrAsk(insp)) {
         if (useDk !== dk) useDk.fill(0);
         dk.fill(0);
-        errEl.textContent = '取りこみをやめました（この端末のデータはそのままです）。';
+        errEl.textContent = L('取りこみをやめました（この端末のデータはそのままです）。', 'Import cancelled (the data on this device is unchanged).');
         return;
       }
       if (useDk !== dk) dk.fill(0);
@@ -1496,7 +1677,7 @@
       clearRestore();
       enterApp();
       noteHistory('open', how);   // V2.00.010〜 開いた履歴
-      setStatus('上書きバックアップで起動しました' + (insp ? fileOrigin(insp) : '') + note);
+      setStatus(L('上書きバックアップで起動しました', 'Started from the overwrite backup') + (insp ? fileOrigin(insp) : '') + note);
       return;
     }
 
@@ -1506,13 +1687,13 @@
     if (fresh && fresh.version === 5 && Array.isArray(fresh.wraps)) vault = fresh;
     const blob = await readDataBlob(vault);
     if (!blob) {
-      book = normalize(SEED); savedSeq = editSeq;   // まだ本体が無い（作りかけ）。書くのは、編集したとき
+      book = normalize(SEED()); savedSeq = editSeq;   // まだ本体が無い（作りかけ）。書くのは、編集したとき
     } else {
       try { book = normalize(await decryptJSON(cryptoKey, blob)); savedSeq = editSeq; }
       catch {
         // V2.00.008〜 開けないときは、見本で上書きしない（前の版はここで見本を保存して、元のデータが消えた）
         cryptoKey = null; if (dkRaw) dkRaw.fill(0); dkRaw = null;
-        errEl.textContent = 'データを開けませんでした（鍵とデータが合いません）。この端末のデータには手を付けていません。バックアップがあれば「上書き用バックアップから開く」で戻せます。';
+        errEl.textContent = L('データを開けませんでした（鍵とデータが合いません）。この端末のデータには手を付けていません。バックアップがあれば「上書き用バックアップから開く」で戻せます。', 'Could not open the data (the key does not match the data). The data on this device was not touched. If you have a backup, you can restore it with "Open from an overwrite backup".');
         return;
       }
       if (!vault.data) { try { await persist(); } catch {} }   // 前の形（別々の置き場）なら、新しい形へ移す
@@ -1620,15 +1801,15 @@
     let content;
     try { content = normalize(await decryptJSON(cryptoKey, s)); } catch { return; }
     if (lockedSince(ep)) return;
-    if (askConfirm(`ロックの前に、この端末に保存できなかった変更があります（${histText({ at:s.at, device:'', browser:'' }).split('　')[0]}）。\n\nこの変更で、いまのデータを置きかえますか？\n（置きかえると、そのあとにほかのタブで保存した内容は消えます）`)) {
+    if (askConfirm(L(`ロックの前に、この端末に保存できなかった変更があります（${histText({ at:s.at, device:'', browser:'' }).split('　')[0]}）。\n\nこの変更で、いまのデータを置きかえますか？\n（置きかえると、そのあとにほかのタブで保存した内容は消えます）`, `There are changes from before the lock that could not be saved on this device (${histDate(s.at)}).\n\nReplace the current data with these changes?\n(If you do, anything saved later in another tab will be lost)`))) {
       if (lockedSince(ep)) return;
       book = content; editSeq++; render(); renderSets();
       try { await persist(); }
-      catch (e) { if (!lockedSince(ep)) setStatus('戻した変更を保存できませんでした：' + e.message, true); return; }
+      catch (e) { if (!lockedSince(ep)) setStatus(L('戻した変更を保存できませんでした：', 'Could not save the restored changes: ') + e.message, true); return; }
       if (lockedSince(ep) || hasUnsaved()) return;   // 保存できたと言えない → 退避は残す（次に開いたときにまた聞く）
       clearUnsaved(s);   // V2.01.010〜 戻したその退避（と同じタブのそれより前の退避）だけを消す
-      setStatus('保存できなかった変更を戻しました');
-    } else if (!lockedSince(ep) && askConfirm('保存できなかった変更を捨てますか？\n\n「キャンセル」なら、次に開いたときにもう一度聞きます。')) {
+      setStatus(L('保存できなかった変更を戻しました', 'Restored the changes that had not been saved'));
+    } else if (!lockedSince(ep) && askConfirm(L('保存できなかった変更を捨てますか？\n\n「キャンセル」なら、次に開いたときにもう一度聞きます。', 'Discard the changes that could not be saved?\n\nIf you press "Cancel", you will be asked again next time you unlock.'))) {
       clearUnsaved(s);
     }
   }
@@ -1653,15 +1834,15 @@
     }
     staleTab = true;
     if (lockingNow) return;   // V2.01.004〜 ロックの途中は画面に出さない（保存しないで暗号化して残す）
-    setStatus(STALE_MSG, true);
-    showToast('ほかのタブで変更されました。ロックして開き直してください', true);
+    setStatus(STALE_MSG(), true);
+    showToast(L('ほかのタブで変更されました。ロックして開き直してください', 'Changed in another tab. Please lock and unlock again'), true);
   });
 
   /* 上書きバックアップ・ファイル選択 */
   function clearRestore() {
     pendingRestore = null;
     const rfn = $('restoreFileName');
-    if (rfn) { rfn.textContent = '選択なし'; rfn.classList.remove('set'); }
+    if (rfn) { rfn.textContent = L('選択なし', 'None selected'); rfn.classList.remove('set'); }
   }
   $('restorePick').addEventListener('click', () => $('restoreFile').click());
   $('restoreFile').addEventListener('change', async e => {
@@ -1669,22 +1850,22 @@
     const nameEl = $('restoreFileName');
     const errEl = $('unlockErr');
     if (!file) return;
-    errEl.textContent = 'ファイルを確認しています…';
+    errEl.textContent = L('ファイルを確認しています…', 'Checking the file…');
     try {
       const { data, text } = await readJSONFileT(file);
       // 上書き用バックアップの印を確認（暗号ファイルはラッパー側に付く）
       if (data.role !== OVERWRITE_MARK) {
-        errEl.textContent = 'これは「上書き用バックアップ」ではありません。ヘッダの「バックアップしてロック」で作ったファイルを選んでください。';
+        errEl.textContent = L('これは「上書き用バックアップ」ではありません。ヘッダの「バックアップしてロック」で作ったファイルを選んでください。', 'This is not an overwrite backup. Please choose a file made with "Back up & lock" at the top of the app.');
         clearRestore();
         return;
       }
       // 開けるのは「パスキーで開く」か「復元キーで開く」を押したとき（finishUnlock）
       pendingRestore = { file: data, fname: file.name, text };
-      nameEl.textContent = `${file.name}（データ名: ${data.name || '不明'}）`;
+      nameEl.textContent = L(`${file.name}（データ名: ${data.name || '不明'}）`, `${file.name} (data name: ${data.name || 'unknown'})`);
       nameEl.classList.add('set');
-      errEl.textContent = '取り込み準備OK。パスキーか復元キーで開いてください。';
+      errEl.textContent = L('取り込み準備OK。パスキーか復元キーで開いてください。', 'Ready to import. Please unlock with a passkey or the recovery key.');
     } catch (err) {
-      errEl.textContent = '読み込めませんでした：' + err.message;
+      errEl.textContent = L('読み込めませんでした：', 'Could not read: ') + err.message;
       clearRestore();
     }
   });
@@ -1695,8 +1876,8 @@
   async function migrateFromV1() {
     const errEl = $('migrateErr');
     const password = $('migratePw').value;
-    if (!password) { errEl.textContent = 'マスターパスワードを入力してください'; return; }
-    errEl.textContent = '確認しています…';
+    if (!password) { errEl.textContent = L('マスターパスワードを入力してください', 'Please enter your master password'); return; }
+    errEl.textContent = L('確認しています…', 'Checking…');
     let content;
     try {
       const meta = await loadJSON(META_KEY);
@@ -1705,43 +1886,43 @@
       try {
         const dataRaw = await store.get(DATA_KEY);
         content = await decryptJSON(key, JSON.parse(dataRaw.value));
-      } catch { content = SEED; }
+      } catch { content = SEED(); }
     } catch {
-      errEl.textContent = 'パスワードが違います';
+      errEl.textContent = L('パスワードが違います', 'Wrong password');
       return;
     }
     $('migratePw').value = '';
     errEl.textContent = '';
     try {
       if (!(await startNewVault(normalize(content), 'migrate'))) {
-        errEl.textContent = '引っ越しをやめました。古いデータはそのまま残っています。';
+        errEl.textContent = L('引っ越しをやめました。古いデータはそのまま残っています。', 'Migration cancelled. Your old data is still there.');
         return;
       }
       // 新しい形で読み戻せることを確かめてから、古い形を消す
       const check = await decryptJSON(cryptoKey, (await loadJSON(META5_KEY)).data);
-      if (JSON.stringify(normalize(check)) !== JSON.stringify(book)) throw new Error('読み戻した中身が一致しません');
+      if (JSON.stringify(normalize(check)) !== JSON.stringify(book)) throw new Error(L('読み戻した中身が一致しません', 'The data read back does not match'));
       await store.delete(META_KEY);
       await store.delete(DATA_KEY);
       markNeedsBackup();
-      setStatus('新しい方式へ移りました。古い形のバックアップは取り込みのときだけマスターパスワードで開けます。新しい形でバックアップを取り直してください');
+      setStatus(L('新しい方式へ移りました。古い形のバックアップは取り込みのときだけマスターパスワードで開けます。新しい形でバックアップを取り直してください', 'Moved to the new method. Old-format backups can still be opened with the master password when importing. Please make a new backup in the current format'));
       await offerPasskey();
     } catch (e) {
-      setStatus('引っ越しの確かめでつまずきました（古いデータは消していません）：' + e.message, true);
-      if (appEl.classList.contains('hidden')) errEl.textContent = '引っ越しできませんでした（古いデータは消していません）：' + e.message;   // V2.00.008〜 移る前に止まったときは、この画面に出す
+      setStatus(L('引っ越しの確かめでつまずきました（古いデータは消していません）：', 'A problem occurred while checking the migration (the old data was not deleted): ') + e.message, true);
+      if (appEl.classList.contains('hidden')) errEl.textContent = L('引っ越しできませんでした（古いデータは消していません）：', 'Could not migrate (the old data was not deleted): ') + e.message;   // V2.00.008〜 移る前に止まったときは、この画面に出す
     }
   }
 
   /* ---------- 全部なくした ---------- */
   async function resetAll() {
-    if (!askConfirm('パスキーも復元キーも無いときは、暗号化された中身をすべて削除して作り直すしかありません。\n\n中身は復元できません。続けますか？')) return;
-    if (!askConfirm('本当によろしいですか？ この端末に保存されているすべてのカードが消えます。')) return;
+    if (!askConfirm(L('パスキーも復元キーも無いときは、暗号化された中身をすべて削除して作り直すしかありません。\n\n中身は復元できません。続けますか？', 'Without a passkey or the recovery key, the only option is to delete all the encrypted contents and start over.\n\nThe contents cannot be recovered. Continue?'))) return;
+    if (!askConfirm(L('本当によろしいですか？ この端末に保存されているすべてのカードが消えます。', 'Are you sure? All cards saved on this device will be deleted.'))) return;
     for (const k of [META5_KEY, DATA5_KEY, META_KEY, DATA_KEY]) { try { await store.delete(k); } catch {} }
     clearUnsaved();   // V2.01.008〜 退避も消す（自己点検 F）。端末への書く・消すは同じ1列で
     await Promise.race([stashIO, new Promise(r => setTimeout(r, 2000))]);
     cryptoKey = null; if (dkRaw) dkRaw.fill(0); dkRaw = null; vault = null;
     book = { sets:[], active:0, name:'snippet-book' };
     await boot();
-    $('setupErr').textContent = 'リセットしました。新しく作るか、バックアップから始めてください。';
+    $('setupErr').textContent = L('リセットしました。新しく作るか、バックアップから始めてください。', 'Reset done. Create new data, or start from a backup.');
   }
   $('forgotBtn').addEventListener('click', resetAll);
   $('forgotOldBtn').addEventListener('click', resetAll);
@@ -1750,37 +1931,37 @@
   function fmtDate(t) { const d = new Date(t); return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`; }
   function renderKeys() {
     const pks = passkeyWraps(vault);
-    $('keysSub').textContent = `データ名：${book.name || 'snippet-book'}　／　パスキー ${pks.length} 件`;
+    $('keysSub').textContent = L(`データ名：${book.name || 'snippet-book'}　／　パスキー ${pks.length} 件`, `Data name: ${book.name || 'snippet-book'}  /  ${pks.length} passkey(s)`);
     const ul = $('pkList');
     ul.innerHTML = '';
     if (!pks.length) {
-      ul.innerHTML = '<li class="pk-empty">まだありません。復元キーで開いています。</li>';
+      ul.innerHTML = L('<li class="pk-empty">まだありません。復元キーで開いています。</li>', '<li class="pk-empty">None yet. You unlocked with the recovery key.</li>');
     }
     pks.forEach(w => {
       const li = document.createElement('li');
       li.innerHTML = `<span class="pk-name">${esc(w.label)}</span><span class="pk-date">${fmtDate(w.created)}</span>`;
       const del = document.createElement('button');
-      del.className = 'cred-copy'; del.textContent = '外す';
+      del.className = 'cred-copy'; del.textContent = L('外す', 'Remove');
       del.addEventListener('click', async () => {
-        if (!askConfirm(`パスキー「${w.label}」を外しますか？\n\nこの端末では、このパスキーで開けなくなります。端末のパスワード管理に残る「スニペット帳」のパスキーは、そちらで消してください。\n\n※ データの鍵は変わりません。端末をなくした・盗まれたときは、外すだけでなく「鍵をすべて作り直す」をしてください（前に書き出したバックアップと、そのパスキーがそろうと読めるため）。`)) return;
+        if (!askConfirm(L(`パスキー「${w.label}」を外しますか？\n\nこの端末では、このパスキーで開けなくなります。端末のパスワード管理に残る「スニペット帳」のパスキーは、そちらで消してください。\n\n※ データの鍵は変わりません。端末をなくした・盗まれたときは、外すだけでなく「鍵をすべて作り直す」をしてください（前に書き出したバックアップと、そのパスキーがそろうと読めるため）。`, `Remove the passkey "${w.label}"?\n\nThis passkey will no longer unlock the data here. Please delete the "Snippet Book" (スニペット帳) passkey that remains in your device's password manager there.\n\nNote: the data key does not change. If a device was lost or stolen, do not just remove it — also use "Replace all keys" (someone with that passkey and an earlier backup could read it).`))) return;
         const vid = vault.vaultId, ep = lockEpoch;   // V2.01.008〜 ロックされたら外さない・画面に書き戻さない（自己点検 G）
         try {   // V2.00.008〜 書けてから切りかえる・V2.01.002〜 順番が来たときの vault から外す
           await writeVault(() => !lockedSince(ep) && vault && vault.vaultId === vid ? { ...vault,
             wraps: vault.wraps.filter(x => !(x.type === 'passkey' && x.credId === w.credId)),
             revoked: [...new Set([...(vault.revoked || []), w.credId])] } : null);   // V2.00.009〜 外した印を残す（ほかの端末のバックアップから戻らない）
         }
-        catch (e) { if (lockedSince(ep)) return; showToast('外せませんでした', true); $('keysErr').textContent = e.message; return; }
+        catch (e) { if (lockedSince(ep)) return; showToast(L('外せませんでした', 'Could not remove it'), true); $('keysErr').textContent = e.message; return; }
         if (lockedSince(ep)) return;
         markNeedsBackup();
         renderKeys();
-        showToast('パスキーを外しました');
+        showToast(L('パスキーを外しました', 'Passkey removed'));
       });
       li.appendChild(del);
       ul.appendChild(li);
     });
     renderHistory();
     $('addPasskeyBtn').disabled = !passkeyBase;
-    $('keysErr').textContent = passkeyBase ? '' : 'この開き方（アドレス）ではパスキーを登録できません。https のアドレスで開いてください。';
+    $('keysErr').textContent = passkeyBase ? '' : L('この開き方（アドレス）ではパスキーを登録できません。https のアドレスで開いてください。', 'Passkeys cannot be registered at this address. Please open the app from its https address.');
   }
   // V2.00.010〜 履歴（新しい順）。V2.00.011〜 最新3行だけ出し、ほかはたたむ
   const HIST_SHOW = 3;
@@ -1791,7 +1972,7 @@
       if (!rows.length) { ul.innerHTML = `<li class="pk-empty">${empty}</li>`; return; }
       const row = x => {
         const li = document.createElement('li');
-        li.innerHTML = `<span class="pk-name">${esc(histText(x))}</span><span class="pk-date">${esc(histWhat(x))}${x.tag ? '　印 ' + esc(x.tag) : ''}</span>`;
+        li.innerHTML = L(`<span class="pk-name">${esc(histText(x))}</span><span class="pk-date">${esc(histWhat(x))}${x.tag ? '　印 ' + esc(x.tag) : ''}</span>`, `<span class="pk-name">${esc(histText(x))}</span><span class="pk-date">${esc(histWhat(x))}${x.tag ? ' · tag ' + esc(x.tag) : ''}</span>`);
         return li;
       };
       const newest = rows.slice().reverse();
@@ -1799,21 +1980,21 @@
       if (newest.length > HIST_SHOW) {   // V2.00.011〜 最新3行のほかは、押したときだけ出す
         const li = document.createElement('li'); li.className = 'hist-more';
         const det = document.createElement('details');
-        const sum = document.createElement('summary'); sum.textContent = `ほか ${newest.length - HIST_SHOW} 件を見る（古いもの）`;
+        const sum = document.createElement('summary'); sum.textContent = L(`ほか ${newest.length - HIST_SHOW} 件を見る（古いもの）`, `Show ${newest.length - HIST_SHOW} more (older)`);
         const inner = document.createElement('ul'); inner.className = 'pk-list';
         newest.slice(HIST_SHOW).forEach(x => inner.appendChild(row(x)));
         det.append(sum, inner); li.appendChild(det); ul.appendChild(li);
       }
     };
-    fill('bkHistList', h.filter(x => isBackupKind(x.kind)), 'まだありません（V2.00.010 から残します）');
-    fill('openHistList', h.filter(x => !isBackupKind(x.kind)), 'まだありません（V2.00.010 から残します）');
+    fill('bkHistList', h.filter(x => isBackupKind(x.kind)), L('まだありません（V2.00.010 から残します）', 'None yet (recorded since V2.00.010)'));
+    fill('openHistList', h.filter(x => !isBackupKind(x.kind)), L('まだありません（V2.00.010 から残します）', 'None yet (recorded since V2.00.010)'));
     $('devNameField').value = deviceName();
-    $('devNameField').placeholder = deviceOS() + '（例：事務所の MacBook）';
+    $('devNameField').placeholder = deviceOS() + L('（例：事務所の MacBook）', ' (e.g. Office MacBook)');
   }
   $('devNameField').addEventListener('change', () => {
     const v = $('devNameField').value.replace(/[\u0000-\u001f]/g, '').trim().slice(0, 30);
     try { if (v) localStorage.setItem(DEVNAME_KEY, v); else localStorage.removeItem(DEVNAME_KEY); } catch {}
-    showToast(v ? `この端末の名前を「${v}」にしました` : 'この端末の名前を消しました');
+    showToast(v ? L(`この端末の名前を「${v}」にしました`, `This device is now named "${v}"`) : L('この端末の名前を消しました', 'Removed the name of this device'));
   });
   // V2.00.010〜 バックアップファイルを確かめる（取りこまない。印と履歴を見るだけ）
   $('checkBkBtn').addEventListener('click', () => $('checkBkFile').click());
@@ -1821,15 +2002,15 @@
     const file = e.target.files[0]; e.target.value = '';
     if (!file) return;
     const out = $('checkBkOut');
-    out.textContent = '確かめています…';
+    out.textContent = L('確かめています…', 'Checking…');
     const ep = lockEpoch;
     try {
       const { data, text } = await readJSONFileT(file);
-      if (!isV5File(data)) throw new Error('パスキー・復元キーで開く形のバックアップではありません');
+      if (!isV5File(data)) throw new Error(L('パスキー・復元キーで開く形のバックアップではありません', 'This is not a backup that opens with a passkey or recovery key'));
       let dk = null, own = false;
       if (vault && dkRaw && data.vaultId === vault.vaultId) dk = dkRaw;
       else {
-        dk = await askOpen(data.wraps, 'このファイルを確かめる', '別の鍵のバックアップです。そのときのパスキーか復元キーで開いてください。');
+        dk = await askOpen(data.wraps, L('このファイルを確かめる', 'Check this file'), L('別の鍵のバックアップです。そのときのパスキーか復元キーで開いてください。', 'This backup uses a different key. Please open it with the passkey or recovery key from that time.'));
         if (!dk) { if (!lockedSince(ep)) out.textContent = ''; return; }
         own = true;
       }
@@ -1841,17 +2022,17 @@
       finally { if (own) dk.fill(0); }
       if (lockedSince(ep)) return;
       const lines = [
-        r.auth === 'ok' ? '○ 中身と鍵の情報：改ざんの印が合いました'
-          : r.auth === 'none' ? '△ 中身は本物ですが、V2.00.009 までのファイルなので、鍵の情報（パスキーの一覧など）は確かめられません'
-          : '× このファイルは改ざんの恐れがあります（中身か鍵の情報が書きかえられています）',
-        r.name === true ? '○ ファイル名の印：合いました' : r.name === false ? '× このファイルは改ざんの恐れがあります（ファイル名の印が中身と合いません）' : '－ ファイル名の印：ありません（V2.00.009 までのファイルか、名前が変えられています）',
+        r.auth === 'ok' ? L('○ 中身と鍵の情報：改ざんの印が合いました', '○ Contents and key information: the tamper check passed')
+          : r.auth === 'none' ? L('△ 中身は本物ですが、V2.00.009 までのファイルなので、鍵の情報（パスキーの一覧など）は確かめられません', '△ The contents are genuine, but the file is from V2.00.009 or earlier, so the key information (passkey list, etc.) cannot be checked')
+          : L('× このファイルは改ざんの恐れがあります（中身か鍵の情報が書きかえられています）', '× This file may have been tampered with (its contents or key information were modified)'),
+        r.name === true ? L('○ ファイル名の印：合いました', '○ File-name tag: matches') : r.name === false ? L('× このファイルは改ざんの恐れがあります（ファイル名の印が中身と合いません）', '× This file may have been tampered with (the file-name tag does not match the contents)') : L('－ ファイル名の印：ありません（V2.00.009 までのファイルか、名前が変えられています）', '– File-name tag: none (a file from V2.00.009 or earlier, or the name was changed)'),
       ];
       const last = r.history.filter(h => isBackupKind(h.kind)).pop();
-      if (last) lines.push(`作ったとき：${histText(last)}（${histWhat(last)}）・履歴 ${r.history.length} 件`);
+      if (last) lines.push(L(`作ったとき：${histText(last)}（${histWhat(last)}）・履歴 ${r.history.length} 件`, `Created: ${histText(last)} (${histWhat(last)}) · ${r.history.length} history entries`));
       out.textContent = lines.join('\n');
       out.style.whiteSpace = 'pre-line';
     } catch (err) {
-      if (!lockedSince(ep)) out.textContent = '確かめられませんでした：' + err.message;
+      if (!lockedSince(ep)) out.textContent = L('確かめられませんでした：', 'Could not check: ') + err.message;
     }
   });
   $('keysBtn').addEventListener('click', () => { renderKeys(); $('keysOverlay').classList.remove('hidden'); });
@@ -1872,18 +2053,18 @@
     try {
       const { data, text } = await readJSONFileT(file);
       if (lockedSince(ep) || !cryptoKey || !dkRaw) return;
-      if (!isV5File(data)) throw new Error('この形のファイルからは合わせられません（「バックアップしてロック」などで書き出した、いまの形のファイルを選んでください）');
-      if (data.vaultId !== vault.vaultId) throw new Error('別の鍵のデータのバックアップです（鍵をすべて作り直す前のものなど）。合わせられません');
-      try { await decryptJSON(cryptoKey, data); } catch { throw new Error('このファイルは、この鍵で開けませんでした。合わせられません'); }   // 本物か確かめる
+      if (!isV5File(data)) throw new Error(L('この形のファイルからは合わせられません（「バックアップしてロック」などで書き出した、いまの形のファイルを選んでください）', 'Cannot merge from this kind of file (please choose a current-format file exported with "Back up & lock" or similar)'));
+      if (data.vaultId !== vault.vaultId) throw new Error(L('別の鍵のデータのバックアップです（鍵をすべて作り直す前のものなど）。合わせられません', 'This is a backup of data with a different key (for example, from before all keys were replaced). Cannot merge'));
+      try { await decryptJSON(cryptoKey, data); } catch { throw new Error(L('このファイルは、この鍵で開けませんでした。合わせられません', 'This file could not be opened with this key. Cannot merge')); }   // 本物か確かめる
       // V2.00.010〜 外側（パスキーの一覧・外した印）も、改ざんを見分ける印で確かめてから合わせる
       const r = await inspectV5(dkRaw, data, file.name, text);
       if (lockedSince(ep)) return;
-      if (r.auth === 'bad') throw new Error(TAMPER_MSG);
-      if (r.auth === 'none') throw new Error('V2.00.009 までに書き出したファイルには改ざんを見分ける印が無いので、一覧は合わせられません。相手の端末で V2.00.010 にしてから「バックアップしてロック」で書き出し直してください');
+      if (r.auth === 'bad') throw new Error(TAMPER_MSG());
+      if (r.auth === 'none') throw new Error(L('V2.00.009 までに書き出したファイルには改ざんを見分ける印が無いので、一覧は合わせられません。相手の端末で V2.00.010 にしてから「バックアップしてロック」で書き出し直してください', 'Files exported by V2.00.009 or earlier have no tamper check, so the list cannot be merged. Update the other device to V2.00.010 or later and export again with "Back up & lock"'));
       if (!nameTagOkOrAsk(r)) return;
       const m = mergePasskeys(vault, data);
       const history = mergeHistory(vault.history, r.history);
-      if (!m.added && !m.removed && (m.revoked.length === (vault.revoked || []).length) && history.length === (vault.history || []).length) { showToast('新しく合わせるパスキーはありません'); return; }
+      if (!m.added && !m.removed && (m.revoked.length === (vault.revoked || []).length) && history.length === (vault.history || []).length) { showToast(L('新しく合わせるパスキーはありません', 'No new passkeys to merge')); return; }
       const vid = vault.vaultId;
       let got = m;
       await writeVault(() => {   // 書けてから切りかえる・V2.01.002〜 順番が来たときの vault で合わせ直す
@@ -1894,7 +2075,7 @@
       if (lockedSince(ep)) return;
       markNeedsBackup();
       renderKeys();
-      showToast(`パスキーの一覧を合わせました（足した ${got.added} 件・外した ${got.removed} 件）`);
+      showToast(L(`パスキーの一覧を合わせました（足した ${got.added} 件・外した ${got.removed} 件）`, `Merged the passkey list (${got.added} added, ${got.removed} removed)`));
     } catch (err) {
       if (!lockedSince(ep)) $('keysErr').textContent = err.message;
     }
@@ -1907,22 +2088,22 @@
     const nw = await makeRecoveryWrap(dkRaw, rk);
     if (lockedSince(ep)) return;   // V2.00.007〜 包むあいだにロックされた → 変えない（古い復元キーのまま）
     const vid = vault.vaultId;
-    try { await writeVault(() => { if (lockedSince(ep)) return null; if (!vault || vault.vaultId !== vid) throw new Error('鍵が変わっていました'); return { ...vault, wraps: vault.wraps.filter(w => w.type !== 'recovery').concat(nw) }; }); }   // V2.00.008〜 書けてから切りかえる
+    try { await writeVault(() => { if (lockedSince(ep)) return null; if (!vault || vault.vaultId !== vid) throw new Error(L('鍵が変わっていました', 'The keys had changed')); return { ...vault, wraps: vault.wraps.filter(w => w.type !== 'recovery').concat(nw) }; }); }   // V2.00.008〜 書けてから切りかえる
     catch (e) {
       if (lockedSince(ep)) return;   // V2.01.008〜 ロックのあとは画面に出さない
-      $('keysErr').textContent = e.message + '。復元キーは前のままです（いま控えた新しい復元キーは使えません）';
-      showToast('復元キーを作り直せませんでした', true);
+      $('keysErr').textContent = e.message + L('。復元キーは前のままです（いま控えた新しい復元キーは使えません）', '. The recovery key is unchanged (the new recovery key you just saved cannot be used)');
+      showToast(L('復元キーを作り直せませんでした', 'Could not replace the recovery key'), true);
       return;
     }
     if (lockedSince(ep)) return;   // V2.01.008〜 書く前にロックされた → 作り直していない・画面に書き戻さない（自己点検 G）
     // ここから先は await をはさまない
     markNeedsBackup();
     renderKeys();
-    showToast('復元キーを作り直しました');
-    setStatus('復元キーを作り直しました。新しい形でバックアップを取り直してください');
+    showToast(L('復元キーを作り直しました', 'Recovery key replaced'));
+    setStatus(L('復元キーを作り直しました。新しい形でバックアップを取り直してください', 'Recovery key replaced. Please make a new backup'));
   });
   $('rekeyBtn').addEventListener('click', async () => {
-    if (!askConfirm('鍵をすべて作り直します。\n\n・新しい復元キーを作ります\n・登録したパスキーはすべて外れます（あとで登録し直します）\n・前に書き出したバックアップは、そのときのパスキーか復元キーでしか開けません\n\n続けますか？')) return;
+    if (!askConfirm(L('鍵をすべて作り直します。\n\n・新しい復元キーを作ります\n・登録したパスキーはすべて外れます（あとで登録し直します）\n・前に書き出したバックアップは、そのときのパスキーか復元キーでしか開けません\n\n続けますか？', 'All keys will be replaced.\n\n• A new recovery key will be created\n• All registered passkeys will be removed (register them again afterwards)\n• Backups exported earlier can only be opened with the passkeys or recovery key from that time\n\nContinue?'))) return;
     const oldVault = vault, oldDk = dkRaw;
     $('keysOverlay').classList.add('hidden');
     try {
@@ -1930,25 +2111,29 @@
       if (!(await startNewVault(book, 'rekey', { history: oldVault.history }))) return;   // V2.01.002〜 vault は書けたときだけ writeVault が切りかえる
       if (oldDk) oldDk.fill(0);
       markNeedsBackup();
-      setStatus('鍵をすべて作り直しました。新しい形でバックアップを取り直し、パスワード管理に残る古い「スニペット帳」のパスキーは消してください');
+      setStatus(L('鍵をすべて作り直しました。新しい形でバックアップを取り直し、パスワード管理に残る古い「スニペット帳」のパスキーは消してください', 'All keys were replaced. Please make a new backup, and delete the old "Snippet Book" (スニペット帳) passkeys left in your password manager'));
       await offerPasskey();
     } catch (e) {
       if (appEl.classList.contains('hidden')) return;   // ロックされたあとなら何も出さない
-      setStatus('作り直せませんでした：' + e.message, true);
+      setStatus(L('作り直せませんでした：', 'Could not replace the keys: ') + e.message, true);
     }
   });
 
+  function appLabels() {
+    hint.innerHTML = viewOnly
+      ? L('📄 読み込むだけのモードです。カードをタップするとコピーできます（この端末には保存されません）。', '📄 View-only mode. Tap a card to copy it (nothing is saved on this device).')
+      : isTouch
+        ? L('カードをタップするとコピーできます。編集は上の「編集」から。', 'Tap a card to copy it. To make changes, use "Edit" at the top.')
+        : L(`<kbd>${MOD}</kbd>+<kbd>1</kbd>…<kbd>9</kbd> でコピー · <kbd>${MOD}</kbd>+<kbd>0</kbd> は10番 · 表示中のセットが対象`, `<kbd>${MOD}</kbd>+<kbd>1</kbd>…<kbd>9</kbd> to copy · <kbd>${MOD}</kbd>+<kbd>0</kbd> for no. 10 · applies to the set shown`);
+    document.getElementById('lockNow').textContent = viewOnly ? L('✕ 閉じる', '✕ Close') : L('🔒 ロック', '🔒 Lock');
+  }
   function enterApp() {
     appEl.inert = false;   // V2.01.003〜 ロックのときに止めた操作をもどす
     lockNotice = '';       // V2.01.006〜 開いたら知らせを消す
-    if (!HAS_LOCKS && !viewOnly) setTimeout(() => setStatus(NO_LOCKS_MSG, true), 0);
+    if (!HAS_LOCKS && !viewOnly) setTimeout(() => setStatus(NO_LOCKS_MSG(), true), 0);
     lockScreen.classList.add('hidden');
     appEl.classList.remove('hidden');
-    hint.innerHTML = viewOnly
-      ? '📄 読み込むだけのモードです。カードをタップするとコピーできます（この端末には保存されません）。'
-      : isTouch
-        ? 'カードをタップするとコピーできます。編集は上の「編集」から。'
-        : `<kbd>${MOD}</kbd>+<kbd>1</kbd>…<kbd>9</kbd> でコピー · <kbd>${MOD}</kbd>+<kbd>0</kbd> は10番 · 表示中のセットが対象`;
+    appLabels();   // V2.02.000〜 ヒントとロックのボタン（言葉を切りかえたときにも入れ直す）
 
     // 閲覧専用: 編集・書き出し・破壊的操作を隠す
     const editToggle = document.getElementById('modeEdit');
@@ -1965,7 +2150,6 @@
       backupExitBtn.style.display = 'none';
       keysBtn.style.display = 'none';
       dataNameInput.disabled = true;
-      document.getElementById('lockNow').textContent = '✕ 閉じる';
       setMode('copy');
     } else {
       editToggle.style.display = '';
@@ -1974,12 +2158,11 @@
       backupExitBtn.style.display = '';
       keysBtn.style.display = '';
       dataNameInput.disabled = false;
-      document.getElementById('lockNow').textContent = '🔒 ロック';
     }
     document.getElementById('backupBanner').classList.remove('show');
     if (!viewOnly) updateBackupBanner();
     render();
-    setStatus(viewOnly ? '読み込みました（保存はされません）' : 'ロックを解除しました');
+    setStatus(viewOnly ? L('読み込みました（保存はされません）', 'Loaded (nothing is saved)') : L('ロックを解除しました', 'Unlocked'));
   }
 
   /* データ名の編集 */
@@ -2022,7 +2205,7 @@
         // V2.01.005〜 残すのも LOCK_STASH_WAIT_MS まで。暗号化した中身はタブの中にあるので、書き終わりを待たずに鍵を消してよい
         if (hasUnsaved()) await Promise.race([stashUnsaved().catch(() => false), new Promise(r => setTimeout(r, LOCK_STASH_WAIT_MS))]);
         // V2.01.006〜 それでも最新の編集を保存も退避もできていなければ、ロック画面で知らせる
-        if (hasUnsaved()) lockNotice = LOST_MSG;
+        if (hasUnsaved()) lockNotice = 'lost';
         savedSeq = editSeq;   // 鍵を消すので、この編集はもう扱えない（開き直したあとに「保存できていない」と数えない）
       }
       staleTab = false;
@@ -2087,7 +2270,7 @@
     const limitMin = rkOpen ? Math.max(prefs.autoLockMin, RK_LOCK_MIN) : prefs.autoLockMin;
     if (Date.now() - lastActivity >= limitMin * 60000) {
       lockNow();
-      setTimeout(() => showToast(`${prefs.autoLockMin}分なにもしなかったのでロックしました`), 300);
+      setTimeout(() => showToast(L(`${prefs.autoLockMin}分なにもしなかったのでロックしました`, `Locked after ${prefs.autoLockMin} min of inactivity`)), 300);
     }
   }
   setInterval(checkAutoLock, 10000);
@@ -2095,6 +2278,7 @@
   window.addEventListener('focus', checkAutoLock);
 
   // 設定（鍵の画面）
+  $('langSel').addEventListener('change', e => setLang(e.target.value));   // V2.02.000〜
   $('autoLockSel').value = String(prefs.autoLockMin);
   $('clipClearSel').value = String(prefs.clipClearSec);
   $('autoLockSel').addEventListener('change', e => { prefs.autoLockMin = parseInt(e.target.value, 10); savePrefs(prefs); lastActivity = Date.now(); });
@@ -2120,7 +2304,7 @@
     const file = e.target.files[0]; e.target.value = '';
     if (!file) return;
     const errEl = document.getElementById('viewErr');
-    errEl.textContent = '読み込んでいます…';
+    errEl.textContent = L('読み込んでいます…', 'Loading…');
     try {
       let { data, text } = await readJSONFileT(file);
       if (isV5File(data)) {
@@ -2138,7 +2322,7 @@
       enterApp();
       noteHistory('view');   // V2.00.010〜 閲覧の履歴（この端末に金庫があるとき）
     } catch (err) {
-      errEl.textContent = '読み込めませんでした：' + err.message;
+      errEl.textContent = L('読み込めませんでした：', 'Could not read: ') + err.message;
     }
   });
 
@@ -2153,13 +2337,13 @@
   function normalize(b) {
     b = asObj(b);
     const sets = asList(b.sets).map(asObj).map(s => ({
-      name: asText(s.name) || '無名',
+      name: asText(s.name) || L('無名', 'Untitled'),
       items: asList(s.items).map(asObj).map(o => ({
         id: asText(o.id) || uid(), title: asText(o.title), text: asText(o.text),
         user: asText(o.user), secret: !!o.secret,
       })),
     }));
-    if (!sets.length) sets.push({ name:'メモ', items:[] });
+    if (!sets.length) sets.push({ name:L('メモ', 'Notes'), items:[] });
     let active = Number.isInteger(b.active) ? b.active : 0;
     if (active < 0 || active >= sets.length) active = 0;
     const name = asText(b.name).trim().slice(0, 100) || 'snippet-book';   // V2.01.008〜 文字・数だけ・100文字まで（自己点検 I）
@@ -2170,8 +2354,8 @@
   function toBook(data, fname) {
     if (data && Array.isArray(data.sets)) return data;
     if (data && (data.kind === 'set' || Array.isArray(data.items))) return { sets:[normalizeSet(data)], active:0, name:data.name };
-    if (Array.isArray(data)) return { sets:[{ name:String(fname || '読み込み').replace(/\.(enc\.)?json$/i,''), items:data }], active:0 };
-    throw new Error('形式が認識できません');
+    if (Array.isArray(data)) return { sets:[{ name:String(fname || L('読み込み', 'Imported')).replace(/\.(enc\.)?json$/i,''), items:data }], active:0 };
+    throw new Error(L('形式が認識できません', 'Unrecognized format'));
   }
 
   /* ファイル名用: データ名 + 日付。ファイル名に使えない文字を除去 */
@@ -2202,7 +2386,7 @@
   }
   async function doPersist(again) {
     if (!cryptoKey || !vault) return;
-    if (staleTab) throw new Error(STALE_MSG);
+    if (staleTab) throw new Error(STALE_MSG());
     const key = cryptoKey, vid = vault.vaultId;
     const seq = editSeq;   // この番号までの編集を暗号化する（暗号化は、呼んだときの中身を一度に写す）
     const blob = await encryptJSON(key, book);
@@ -2225,8 +2409,8 @@
     saveTimer = setTimeout(async () => {
       savePending = false;
       const ep = lockEpoch;
-      try { await persist(); if (!lockedSince(ep)) setStatus(`保存しました · ${activeSet().items.length} 件 / ${book.sets.length} セット`); }
-      catch (e) { if (!lockedSince(ep)) setStatus((e && e.message === STALE_MSG ? STALE_MSG : 'この端末に保存できませんでした。バックアップを取ってください'), true); }
+      try { await persist(); if (!lockedSince(ep)) setStatus(L(`保存しました · ${activeSet().items.length} 件 / ${book.sets.length} セット`, `Saved · ${activeSet().items.length} card(s) / ${book.sets.length} set(s)`)); }
+      catch (e) { if (!lockedSince(ep)) setStatus((e && e.message === STALE_MSG() ? STALE_MSG() : L('この端末に保存できませんでした。バックアップを取ってください', 'Could not save on this device. Please make a backup')), true); }
     }, 300);
   }
   function setStatus(msg, isError) {
@@ -2252,13 +2436,13 @@
     let show = false, text = '';
     if (dirtySinceBackup) {
       show = true;
-      text = '<b>変更があります。</b>バックアップを取ると、万一データが消えても復元できます。';
+      text = L('<b>変更があります。</b>バックアップを取ると、万一データが消えても復元できます。', '<b>You have changes.</b> With a backup, you can restore your data if it is ever lost.');
     } else if (last === 0) {
       show = true;
-      text = 'まだ一度もバックアップしていません。念のためバックアップをおすすめします。';
+      text = L('まだ一度もバックアップしていません。念のためバックアップをおすすめします。', 'You have never made a backup. We recommend making one, just in case.');
     } else if (days !== null && days >= BACKUP_STALE_DAYS) {
       show = true;
-      text = `<b>前回のバックアップから ${days} 日</b>経っています。スマホは保存が消えることがあるため、バックアップをおすすめします。`;
+      text = L(`<b>前回のバックアップから ${days} 日</b>経っています。スマホは保存が消えることがあるため、バックアップをおすすめします。`, `<b>${days} days since your last backup.</b> Phones sometimes lose saved data, so we recommend making a backup.`);
     }
     banner.classList.toggle('show', show);
     if (show) msg.innerHTML = text;
@@ -2278,14 +2462,14 @@
     }
   }
   async function copyText(txt, index, label, sensitive) {
-    if (!txt) { showToast('中身が空です', true); return; }
+    if (!txt) { showToast(L('中身が空です', 'It is empty'), true); return; }
     const ep = lockEpoch;
     const ok = await writeClip(txt);
-    if (!ok) { if (!lockedSince(ep)) showToast('コピーできませんでした', true); return; }
+    if (!ok) { if (!lockedSince(ep)) showToast(L('コピーできませんでした', 'Could not copy'), true); return; }
     if (sensitive) scheduleClipClear();   // ロックされていても、空にする予定は立てる
     if (lockedSince(ep)) return;          // 途中でロックされた → 印も知らせも出さない（知らせにはコピーした文の頭が入るため）
     if (index != null) stamp(index);
-    showToast(sensitive && prefs.clipClearSec ? `${label}（${prefs.clipClearSec}秒後に空にします・この画面に戻ったとき）` : label);
+    showToast(sensitive && prefs.clipClearSec ? L(`${label}（${prefs.clipClearSec}秒後に空にします・この画面に戻ったとき）`, `${label} (the clipboard will be cleared after ${prefs.clipClearSec} s, when you are back on this page)`) : label);
   }
   /* V2.00.004〜 パスワード・復元キーをコピーしたら、決めた秒数のあとにクリップボードを空にする。
      ブラウザは、この画面が前に出ていないとクリップボードに書けないので、
@@ -2307,7 +2491,7 @@
     if (!ok) return;   // まだ書けない → 次に触ったときにもう一度
     if (clipClearAt !== at) return;   // その間に新しくコピーした
     clipClearAt = 0; clearTimeout(clipClearTimer);
-    showToast('クリップボードを空にしました');
+    showToast(L('クリップボードを空にしました', 'Clipboard cleared'));
   }
   // copy の合図を起こし、中身を空の文字に差しかえる（writeText が許されないブラウザ向け）
   let clipClearing = false;
@@ -2375,11 +2559,11 @@
     });
     if (mode === 'edit') {
       const add = document.createElement('button');
-      add.className='set-add'; add.textContent='+'; add.title='セットを追加';
+      add.className='set-add'; add.textContent='+'; add.title=L('セットを追加', 'Add a set');
       add.addEventListener('click', addSet); setsEl.appendChild(add);
       if (book.sets.length > 1) {
         const del = document.createElement('button');
-        del.className='set-add'; del.textContent='×'; del.title='このセットを削除';
+        del.className='set-add'; del.textContent='×'; del.title=L('このセットを削除', 'Delete this set');
         del.style.color='var(--seal)'; del.addEventListener('click', deleteSet); setsEl.appendChild(del);
       }
     }
@@ -2391,7 +2575,7 @@
     const q = search.value.trim().toLowerCase();
     list.innerHTML = '';
     if (!items.length) {
-      list.innerHTML = `<div class="empty"><p>このセットにはカードがありません。</p><p>編集モードで追加してください。</p></div>`;
+      list.innerHTML = L(`<div class="empty"><p>このセットにはカードがありません。</p><p>編集モードで追加してください。</p></div>`, `<div class="empty"><p>This set has no cards.</p><p>Add some in Edit mode.</p></div>`);
       return;
     }
     let shown = 0;
@@ -2400,7 +2584,7 @@
       if (q && !hay.toLowerCase().includes(q)) return;
       shown++; list.appendChild(cardEl(item, i));
     });
-    if (!shown) list.innerHTML = `<div class="empty"><p>一致するカードはありません。</p></div>`;
+    if (!shown) list.innerHTML = L(`<div class="empty"><p>一致するカードはありません。</p></div>`, `<div class="empty"><p>No matching cards.</p></div>`);
   }
 
   function cardEl(item, i) {
@@ -2412,7 +2596,7 @@
     const tab = document.createElement('div');
     tab.className='tab';
     tab.innerHTML = `<span>${i===9?'0':i+1}</span>`;
-    tab.title = i<10 ? `${MOD} + ${i===9?'0':i+1}` : 'ショートカットなし';
+    tab.title = i<10 ? `${MOD} + ${i===9?'0':i+1}` : L('ショートカットなし', 'No shortcut');
     card.appendChild(tab);
 
     const body = document.createElement('div');
@@ -2424,34 +2608,34 @@
         const revealed = peeking.has(item.id);
         const label = document.createElement('div');
         label.className = 'label';
-        label.innerHTML = `${esc(item.title || '（無題）')}<span class="badge">秘匿</span>`;
+        label.innerHTML = L(`${esc(item.title || '（無題）')}<span class="badge">秘匿</span>`, `${esc(item.title || '(untitled)')}<span class="badge">secret</span>`);
         const cred = document.createElement('div');
         cred.className = 'cred';
 
         // ID row
         const idRow = document.createElement('div');
         idRow.className = 'cred-row';
-        idRow.innerHTML = `<span class="k">ID</span><span class="v">${item.user ? esc(item.user) : '<span style="color:var(--seal);font-style:italic">未設定</span>'}</span>`;
+        idRow.innerHTML = L(`<span class="k">ID</span><span class="v">${item.user ? esc(item.user) : '<span style="color:var(--seal);font-style:italic">未設定</span>'}</span>`, `<span class="k">ID</span><span class="v">${item.user ? esc(item.user) : '<span style="color:var(--seal);font-style:italic">not set</span>'}</span>`);
         const idBtn = document.createElement('button');
-        idBtn.className='cred-copy'; idBtn.textContent='コピー';
-        idBtn.title = `${MOD}+${i===9?'0':i+1} は ID をコピー`;
-        idBtn.addEventListener('click', e => { e.stopPropagation(); copyText(item.user, i, `${item.title||'ID'} の ID をコピー`); });
+        idBtn.className='cred-copy'; idBtn.textContent=L('コピー', 'Copy');
+        idBtn.title = L(`${MOD}+Shift+${i===9?'0':i+1} で ID をコピー`, `${MOD}+Shift+${i===9?'0':i+1} copies the ID`);
+        idBtn.addEventListener('click', e => { e.stopPropagation(); copyText(item.user, i, L(`${item.title||'ID'} の ID をコピー`, `Copied the ID of ${item.title||'ID'}`)); });
         idRow.appendChild(idBtn);
 
         // PW row
         const pwRow = document.createElement('div');
         pwRow.className = 'cred-row';
-        const pwVal = !item.text ? '<span style="color:var(--seal);font-style:italic">未設定</span>'
+        const pwVal = !item.text ? L('<span style="color:var(--seal);font-style:italic">未設定</span>', '<span style="color:var(--seal);font-style:italic">not set</span>')
                     : revealed ? esc(item.text)
                     : `<span class="masked">${'●'.repeat(Math.min(item.text.length,14))}</span>`;
         pwRow.innerHTML = `<span class="k">PW</span><span class="v">${pwVal}</span>`;
         const eyeBtn = document.createElement('button');
         eyeBtn.className='cred-copy'; eyeBtn.textContent='👁';
-        eyeBtn.title='3秒だけ表示';
+        eyeBtn.title=L('3秒だけ表示', 'Show for 3 seconds');
         eyeBtn.addEventListener('click', e => { e.stopPropagation(); peek(item.id); });
         const pwBtn = document.createElement('button');
-        pwBtn.className='cred-copy'; pwBtn.textContent='コピー';
-        pwBtn.addEventListener('click', e => { e.stopPropagation(); copyText(item.text, i, `${item.title||'PW'} のパスワードをコピー`, true); });
+        pwBtn.className='cred-copy'; pwBtn.textContent=L('コピー', 'Copy');
+        pwBtn.addEventListener('click', e => { e.stopPropagation(); copyText(item.text, i, L(`${item.title||'PW'} のパスワードをコピー`, `Copied the password of ${item.title||'PW'}`), true); });
         if (item.text) pwRow.appendChild(eyeBtn);
         pwRow.appendChild(pwBtn);
 
@@ -2460,32 +2644,32 @@
       } else {
         body.classList.add('plainrow');
         body.tabIndex = 0; body.setAttribute('role','button');
-        body.setAttribute('aria-label', `${item.title} をコピー`);
-        const inner = item.text ? `<pre class="snippet">${esc(item.text)}</pre>` : `<pre class="snippet unset">未入力 — 編集モードで登録</pre>`;
-        body.innerHTML = `<div class="label">${esc(item.title || '（無題）')}</div>` + inner;
-        body.addEventListener('click', () => copyText(item.text, i, 'コピー ' + (item.text.length>40?item.text.slice(0,40)+'…':item.text)));
-        body.addEventListener('keydown', e => { if (e.key==='Enter'||e.key===' ') { e.preventDefault(); copyText(item.text, i, 'コピーしました'); } });
+        body.setAttribute('aria-label', L(`${item.title} をコピー`, `Copy ${item.title}`));
+        const inner = item.text ? `<pre class="snippet">${esc(item.text)}</pre>` : L(`<pre class="snippet unset">未入力 — 編集モードで登録</pre>`, `<pre class="snippet unset">Empty — fill it in Edit mode</pre>`);
+        body.innerHTML = L(`<div class="label">${esc(item.title || '（無題）')}</div>`, `<div class="label">${esc(item.title || '(untitled)')}</div>`) + inner;
+        body.addEventListener('click', () => copyText(item.text, i, L('コピー ', 'Copied: ') + (item.text.length>40?item.text.slice(0,40)+'…':item.text)));
+        body.addEventListener('keydown', e => { if (e.key==='Enter'||e.key===' ') { e.preventDefault(); copyText(item.text, i, L('コピーしました', 'Copied')); } });
       }
     } else {
       // edit mode
       const title = document.createElement('input');
-      title.className='field title'; title.value=item.title; title.placeholder='この行の説明';
+      title.className='field title'; title.value=item.title; title.placeholder=L('この行の説明', 'Description of this card');
       title.addEventListener('input', () => { item.title=title.value; save(); });
       body.appendChild(title);
 
       if (item.secret) {
-        const ul = document.createElement('div'); ul.className='subfield-label'; ul.textContent='ID / ユーザー名';
+        const ul = document.createElement('div'); ul.className='subfield-label'; ul.textContent=L('ID / ユーザー名', 'ID / user name');
         const user = document.createElement('input');
-        user.className='field user'; user.value=item.user||''; user.placeholder='ユーザー名・メールアドレスなど'; user.autocomplete='off';
+        user.className='field user'; user.value=item.user||''; user.placeholder=L('ユーザー名・メールアドレスなど', 'User name, email address, etc.'); user.autocomplete='off';
         user.addEventListener('input', () => { item.user=user.value; save(); });
-        const pl = document.createElement('div'); pl.className='subfield-label'; pl.textContent='パスワード（画面に表示されません）';
+        const pl = document.createElement('div'); pl.className='subfield-label'; pl.textContent=L('パスワード（画面に表示されません）', 'Password (not shown on screen)');
         const pw = document.createElement('input');
-        pw.className='field text'; pw.type='password'; pw.value=item.text; pw.placeholder='パスワード'; pw.autocomplete='off';
+        pw.className='field text'; pw.type='password'; pw.value=item.text; pw.placeholder=L('パスワード', 'Password'); pw.autocomplete='off';
         pw.addEventListener('input', () => { item.text=pw.value; save(); });
         body.append(ul, user, pl, pw);
       } else {
         const text = document.createElement('textarea');
-        text.className='field text'; text.value=item.text; text.placeholder='コピーしたいテキスト';
+        text.className='field text'; text.value=item.text; text.placeholder=L('コピーしたいテキスト', 'Text to copy');
         text.rows = Math.min(5, item.text.split('\n').length + 1);
         text.addEventListener('input', () => { item.text=text.value; save(); });
         body.appendChild(text);
@@ -2497,7 +2681,7 @@
       const secBox = document.createElement('input');
       secBox.type='checkbox'; secBox.checked=item.secret;
       secBox.addEventListener('change', () => { item.secret=secBox.checked; save(); render(); });
-      secWrap.append(secBox, document.createTextNode('ID/パスワード（伏字・2行コピー）'));
+      secWrap.append(secBox, document.createTextNode(L('ID/パスワード（伏字・2行コピー）', 'ID/password (masked, copy two lines separately)')));
       opts.appendChild(secWrap);
       body.appendChild(opts);
     }
@@ -2507,15 +2691,15 @@
     actions.className='actions';
     if (mode === 'edit') {
       actions.append(
-        iconBtn('↑','上へ移動', i===0, () => move(i,-1)),
-        iconBtn('↓','下へ移動', i===items.length-1, () => move(i,1)),
-        iconBtn('✕','削除', false, () => remove(i), true),
+        iconBtn('↑',L('上へ移動', 'Move up'), i===0, () => move(i,-1)),
+        iconBtn('↓',L('下へ移動', 'Move down'), i===items.length-1, () => move(i,1)),
+        iconBtn('✕',L('削除', 'Delete'), false, () => remove(i), true),
       );
     }
     card.appendChild(actions);
 
     const stampEl = document.createElement('div');
-    stampEl.className='seal-stamp'; stampEl.textContent='コピー済';
+    stampEl.className='seal-stamp'; stampEl.textContent=L('コピー済', 'Copied');
     card.appendChild(stampEl);
     return card;
   }
@@ -2547,18 +2731,18 @@
 
   /* ---------- set mutations ---------- */
   function addSet() {
-    const name=(askPrompt('新しいセットの名前','')||'').trim();
+    const name=(askPrompt(L('新しいセットの名前', 'Name of the new set'),'')||'').trim();
     if (!name) return;
     book.sets.push({ name, items:[] }); book.active=book.sets.length-1; save(); render();
   }
   function renameSet(i) {
-    const name=(askPrompt('セット名を変更', book.sets[i].name)||'').trim();
+    const name=(askPrompt(L('セット名を変更', 'Rename the set'), book.sets[i].name)||'').trim();
     if (!name) return;
     book.sets[i].name=name; save(); render();
   }
   function deleteSet() {
     if (book.sets.length<=1) return;
-    if (!askConfirm(`セット「${activeSet().name}」を削除します。中のカードもすべて消えます。よろしいですか？`)) return;
+    if (!askConfirm(L(`セット「${activeSet().name}」を削除します。中のカードもすべて消えます。よろしいですか？`, `Delete the set "${activeSet().name}"? All cards in it will be deleted too.`))) return;
     book.sets.splice(book.active,1);
     if (book.active>=book.sets.length) book.active=book.sets.length-1;
     save(); render();
@@ -2580,7 +2764,7 @@
       let h = null;
       try {
         h = await window.showSaveFilePicker({ suggestedName: filename,
-          types: [{ description: 'スニペット帳のファイル', accept: { 'application/json': ['.json'] } }] });
+          types: [{ description: L('スニペット帳のファイル', 'Snippet Book file'), accept: { 'application/json': ['.json'] } }] });
       } catch (e) {
         if (e && e.name === 'AbortError') return { how:'cancelled', name:filename };
         h = null;   // 選ぶ画面を出せなかった（押してから時間がたったなど）→ ダウンロードにする
@@ -2617,8 +2801,8 @@
       $('shareGo').onclick = async () => {
         try { await navigator.share({ files:[f] }); close({ how:'saved', name:f.name }); }
         catch (e) {
-          if (e && e.name === 'AbortError') { $('shareErr').textContent = '保存しませんでした。もう一度「保存先を選ぶ」を押すか、「やめる」を押してください'; return; }
-          $('shareErr').textContent = '共有の画面を出せませんでした。「ダウンロードに保存」を使ってください';
+          if (e && e.name === 'AbortError') { $('shareErr').textContent = L('保存しませんでした。もう一度「保存先を選ぶ」を押すか、「やめる」を押してください', 'Not saved. Press "Choose where to save" again, or press "Cancel"'); return; }
+          $('shareErr').textContent = L('共有の画面を出せませんでした。「ダウンロードに保存」を使ってください', 'Could not open the share sheet. Please use "Save to Downloads"');
         }
       };
       $('shareDl').onclick = () => { downloadBlob(f.name, text); close({ how:'downloaded', name:f.name }); };
@@ -2627,7 +2811,7 @@
   }
   // V2.00.010〜 V2 のバックアップを作って保存する：履歴に1行足し、ファイル名に印を付ける。保存したら金庫の履歴にも残す
   async function saveV5Backup(kind, extra) {
-    if (!cryptoKey || !vault || !dkRaw) { showToast('先にロックを解除してください', true); return null; }
+    if (!cryptoKey || !vault || !dkRaw) { showToast(L('先にロックを解除してください', 'Please unlock first'), true); return null; }
     const ep = lockEpoch;
     const dk = dkRaw;
     const entry = histEntry(kind);
@@ -2637,11 +2821,11 @@
     if (lockedSince(ep)) return null;   // 途中でロックされた → 書き出さない
     const { nm, date, time } = safeFileBase();
     const got = await saveFile(`${nm}-${date}-${time}-${kind}-${tag}.enc.json`, text);
-    if (got.how === 'cancelled') { showToast('保存をやめました'); return null; }
+    if (got.how === 'cancelled') { showToast(L('保存をやめました', 'Saving cancelled')); return null; }
     if (!lockedSince(ep)) {
       const vid = vault.vaultId;
       try { await writeVault(() => vault && vault.vaultId === vid ? { ...vault, history: mergeHistory(vault.history, [{ ...entry, tag }]) } : null); }
-      catch { if (!lockedSince(ep)) setStatus('バックアップは書き出しましたが、履歴をこの端末に残せませんでした', true); }
+      catch { if (!lockedSince(ep)) setStatus(L('バックアップは書き出しましたが、履歴をこの端末に残せませんでした', 'The backup was exported, but its history could not be recorded on this device'), true); }
     }
     return got;
   }
@@ -2657,43 +2841,43 @@
 
   /* ---------- plaintext export (menu) ---------- */
   document.getElementById('exportSet').addEventListener('click', () => {
-    const choice = askPrompt('平文で書き出します（中身が見える状態のファイルです）。\n\n1 = このセットだけ\n2 = 全セット\n\n番号を入力:', '1');
+    const choice = askPrompt(L('平文で書き出します（中身が見える状態のファイルです）。\n\n1 = このセットだけ\n2 = 全セット\n\n番号を入力:', 'Export as plain text (anyone can read the file).\n\n1 = this set only\n2 = all sets\n\nEnter a number:'), '1');
     if (choice === null) return;
-    const inc = askConfirm('パスワードの中身も含めますか？\n\n「OK」= 含める（平文で書かれます）\n「キャンセル」= 空にして書き出す');
+    const inc = askConfirm(L('パスワードの中身も含めますか？\n\n「OK」= 含める（平文で書かれます）\n「キャンセル」= 空にして書き出す', 'Include the passwords?\n\n"OK" = include them (written as plain text)\n"Cancel" = export with passwords left empty'));
     if (choice.trim() === '2') {
       downloadJSON('snippets-all.json', fullBook(inc));
-      setStatus(`全 ${book.sets.length} セットを平文で書き出しました`);
+      setStatus(L(`全 ${book.sets.length} セットを平文で書き出しました`, `Exported all ${book.sets.length} set(s) as plain text`));
     } else {
       const set = activeSet();
       const safe=(set.name||'set').replace(/[^\w\-]+/g,'_');
       downloadJSON(`snippets-${safe}.json`, { version:4, kind:'set',
         name:set.name, items:set.items.map(o=>({ title:o.title, user:o.user||'', text:(o.secret&&!inc)?'':o.text, secret:o.secret })) });
-      setStatus(`「${set.name}」を平文で書き出しました`);
+      setStatus(L(`「${set.name}」を平文で書き出しました`, `Exported "${set.name}" as plain text`));
     }
   });
 
   /* ---------- ENCRYPTED export ---------- */
   document.getElementById('exportEnc').addEventListener('click', async () => {
-    const useOwn = askConfirm('暗号化して書き出します。\n\n「OK」= このファイル専用のパスワードを設定する（人に渡すときなど）\n「キャンセル」= このアプリの鍵（パスキー・復元キー）で開ける形にする（ふだんのバックアップ）');
+    const useOwn = askConfirm(L('暗号化して書き出します。\n\n「OK」= このファイル専用のパスワードを設定する（人に渡すときなど）\n「キャンセル」= このアプリの鍵（パスキー・復元キー）で開ける形にする（ふだんのバックアップ）', 'Export encrypted.\n\n"OK" = set a password just for this file (e.g. to give it to someone)\n"Cancel" = make it open with this app\'s keys (passkey / recovery key) — a normal backup'));
     const fname = `${safeFileBase().stamp}-backup.enc.json`;
     if (useOwn) {
       // V2.00.003〜 最低 12 文字（ファイルを手に入れた人が手元で総当たりできるため。8 文字では弱い）
-      const p1 = askPrompt('このファイル専用のパスワードを入力（12文字以上。長いほど安全）:');
+      const p1 = askPrompt(L('このファイル専用のパスワードを入力（12文字以上。長いほど安全）:', 'Enter a password for this file only (12 characters or more; longer is safer):'));
       if (p1 === null) return;
-      if (p1.length < 12) { showToast('12文字以上にしてください', true); return; }
-      const p2 = askPrompt('確認のためもう一度入力:');
+      if (p1.length < 12) { showToast(L('12文字以上にしてください', 'Please use 12 characters or more'), true); return; }
+      const p2 = askPrompt(L('確認のためもう一度入力:', 'Enter it again to confirm:'));
       if (p2 === null) return;
-      if (p1 !== p2) { showToast('2つの入力が一致しません', true); return; }
+      if (p1 !== p2) { showToast(L('2つの入力が一致しません', 'The two entries do not match'), true); return; }
       const ep = lockEpoch;
       const out = await makePwFile(p1, fullBook(true), { mode:'own', name:book.name });
       if (lockedSince(ep)) return;
-      if ((await saveFile(fname, JSON.stringify(out, null, 2))).how === 'cancelled') { showToast('保存をやめました'); return; }
+      if ((await saveFile(fname, JSON.stringify(out, null, 2))).how === 'cancelled') { showToast(L('保存をやめました', 'Saving cancelled')); return; }
     } else {
       const got = await saveV5Backup('bk', { mode:'vault', name:book.name });   // V2.00.010〜 履歴・印つき
       if (!got) return;
     }
-    setStatus('暗号化バックアップを書き出しました');
-    showToast('暗号化して書き出しました');
+    setStatus(L('暗号化バックアップを書き出しました', 'Encrypted backup exported'));
+    showToast(L('暗号化して書き出しました', 'Exported encrypted'));
   });
 
   /* ---------- BACKUP (overwrite backup, marked) ---------- */
@@ -2717,9 +2901,9 @@
   document.getElementById('backupExit').addEventListener('click', async () => {
     const fname = await writeOverwriteBackup();
     if (!fname) return;
-    document.getElementById('exitFileName').textContent = `保存したファイル: ${fname}`;
+    document.getElementById('exitFileName').textContent = L(`保存したファイル: ${fname}`, `Saved file: ${fname}`);
     document.getElementById('exitOverlay').classList.remove('hidden');
-    setStatus('上書きバックアップを書き出しました');
+    setStatus(L('上書きバックアップを書き出しました', 'Overwrite backup exported'));
   });
   document.getElementById('exitDone').addEventListener('click', () => {
     document.getElementById('exitOverlay').classList.add('hidden');
@@ -2730,8 +2914,8 @@
   document.getElementById('backupNow').addEventListener('click', async () => {
     const fname = await writeOverwriteBackup();
     if (!fname) return;
-    showToast('バックアップしました');
-    setStatus(`バックアップしました: ${fname}`);
+    showToast(L('バックアップしました', 'Backed up'));
+    setStatus(L(`バックアップしました: ${fname}`, `Backed up: ${fname}`));
   });
 
   /* ---------- SEND one set (auto random password, reveal dialog) ---------- */
@@ -2742,7 +2926,7 @@
   }
   document.getElementById('sendSet').addEventListener('click', async () => {
     const set = activeSet();
-    if (!set.items.length) { showToast('このセットは空です', true); return; }
+    if (!set.items.length) { showToast(L('このセットは空です', 'This set is empty'), true); return; }
     // 毎回新しいランダムパスワードを強制生成
     const filePw = genPassphrase();
     const payload = { version:4, kind:'set', name:set.name,
@@ -2752,21 +2936,21 @@
     const out = await makePwFile(filePw, payload, { mode:'own', set:set.name });
     if (lockedSince(ep)) return;   // 暗号化の途中でロックされた → 書き出さず、パスワードも見せない
     const got = await saveFile(fname, JSON.stringify(out, null, 2));   // V2.00.010〜 保存先を選ぶ
-    if (got.how === 'cancelled' || lockedSince(ep)) { if (got.how === 'cancelled') showToast('保存をやめました'); return; }
+    if (got.how === 'cancelled' || lockedSince(ep)) { if (got.how === 'cancelled') showToast(L('保存をやめました', 'Saving cancelled')); return; }
 
     // reveal password once
-    document.getElementById('sendFileName').textContent = `ファイル: ${got.name}  ／  セット: ${set.name}`;
+    document.getElementById('sendFileName').textContent = L(`ファイル: ${got.name}  ／  セット: ${set.name}`, `File: ${got.name}  /  Set: ${set.name}`);
     document.getElementById('sendPw').textContent = filePw;
     document.getElementById('sendOverlay').classList.remove('hidden');
-    setStatus(`「${set.name}」を暗号化して書き出しました`);
+    setStatus(L(`「${set.name}」を暗号化して書き出しました`, `Exported "${set.name}" encrypted`));
   });
   document.getElementById('sendCopy').addEventListener('click', async () => {
     const pw = document.getElementById('sendPw').textContent;
     const ok = await writeClip(pw);
     if (ok) scheduleClipClear();
     const b = document.getElementById('sendCopy');
-    b.textContent = ok ? 'コピーしました' : 'コピー不可';
-    setTimeout(() => { b.textContent = 'コピー'; }, 1500);
+    b.textContent = ok ? L('コピーしました', 'Copied') : L('コピー不可', 'Cannot copy');
+    setTimeout(() => { b.textContent = L('コピー', 'Copy'); }, 1500);
   });
   document.getElementById('sendDone').addEventListener('click', () => {
     document.getElementById('sendOverlay').classList.add('hidden');
@@ -2806,7 +2990,7 @@
       if (data && Array.isArray(data.sets)) incoming = data.sets.filter(x => x && typeof x === 'object').map(normalizeSet);
       else if (data && (data.kind==='set' || Array.isArray(data.items))) incoming = [normalizeSet(data)];
       else if (Array.isArray(data)) incoming = [normalizeSet({ name:file.name.replace(/\.(enc\.)?json$/i,''), items:data })];
-      else throw new Error('形式が認識できません');
+      else throw new Error(L('形式が認識できません', 'Unrecognized format'));
       checkLimits(book.sets.concat(incoming));
       if (pkMerge && (pkMerge.added || pkMerge.removed || histMerged.length !== (vault.history || []).length)) {
         const vid = vault.vaultId;
@@ -2820,11 +3004,11 @@
       book.sets.push(...incoming);
       const added = incoming.length;
       book.active=book.sets.length-1; save(); render();
-      setStatus(`読み込みました · ${added} セットを追加`);
-      showToast(`${added} セットを追加しました`);
+      setStatus(L(`読み込みました · ${added} セットを追加`, `Imported · added ${added} set(s)`));
+      showToast(L(`${added} セットを追加しました`, `Added ${added} set(s)`));
     } catch (err) {
-      setStatus('読み込めませんでした：'+err.message, true);
-      showToast('読み込めませんでした', true);
+      setStatus(L('読み込めませんでした：', 'Could not read: ')+err.message, true);
+      showToast(L('読み込めませんでした', 'Could not import'), true);
     }
   });
 
@@ -2838,14 +3022,14 @@
       try { await decryptJSON(cryptoKey, data); dk = dkRaw; } catch {}
     }
     if (!dk) {
-      dk = await askOpen(data.wraps, 'このファイルを開く', `データ名：${data.name || '不明'}`);
+      dk = await askOpen(data.wraps, L('このファイルを開く', 'Open this file'), L(`データ名：${data.name || '不明'}`, `Data name: ${data.name || 'unknown'}`));
       if (!dk) return null;
       own = true;
     }
     try {
       const content = await decryptJSON(await importDK(dk), data);
       const insp = await inspectV5(dk, data, fname, text);
-      if (insp.auth === 'bad') throw new Error(TAMPER_MSG);
+      if (insp.auth === 'bad') throw new Error(TAMPER_MSG());
       if (!nameTagOkOrAsk(insp)) return null;
       return { content, insp, own };   // V2.01.008〜 own：ファイルの中の鍵の情報で開いた（いまの鍵では開けなかった）
     } finally { if (own) dk.fill(0); }
@@ -2856,21 +3040,21 @@
     // otherwise ask for a password (up to 3 tries)
     for (let i = 0; i < 3; i++) {
       const pw = askPrompt(data.mode === 'own'
-        ? 'このファイルに設定したパスワードを入力:'
-        : 'このファイルは古い形（V1）です。そのときのマスターパスワードを入力:');
+        ? L('このファイルに設定したパスワードを入力:', 'Enter the password set for this file:')
+        : L('このファイルは古い形（V1）です。そのときのマスターパスワードを入力:', 'This file is in the old format (V1). Enter the master password from that time:'));
       if (pw === null) return null;
       try {
         return await openV4File(data, pw);
       } catch {
-        showToast('パスワードが違います', true);
+        showToast(L('パスワードが違います', 'Wrong password'), true);
       }
     }
-    throw new Error('復号できませんでした');
+    throw new Error(L('復号できませんでした', 'Could not decrypt'));
   }
 
   function normalizeSet(s) {
     s = asObj(s);
-    return { name: asText(s.name) || '読み込み', items: asList(s.items).map(asObj).map(o => ({
+    return { name: asText(s.name) || L('読み込み', 'Imported'), items: asList(s.items).map(asObj).map(o => ({
       id:uid(), title:asText(o.title), text:asText(o.text), user:asText(o.user), secret:!!o.secret,
     })) };
   }
@@ -2880,16 +3064,16 @@
   async function readJSONFile(file) { return (await readJSONFileT(file)).data; }
   // V2.00.010〜 ファイル名の印を確かめるため、読んだ文字もそのまま返す
   async function readJSONFileT(file) {
-    if (file.size > MAX_FILE_BYTES) throw new Error('ファイルが大きすぎます（5MB まで）');
+    if (file.size > MAX_FILE_BYTES) throw new Error(L('ファイルが大きすぎます（5MB まで）', 'The file is too large (up to 5 MB)'));
     const text = await file.text();
     try { return { data: JSON.parse(text), text }; }
-    catch { throw new Error('JSON の形ではありません'); }
+    catch { throw new Error(L('JSON の形ではありません', 'Not a JSON file')); }
   }
   // V2.01.008〜 ファイルから作った本は、どの道でも件数の上限を見る（自己点検 H）
   function limitBook(b) { checkLimits(b.sets); return b; }
   function checkLimits(sets) {
     const n = sets.reduce((a, s) => a + s.items.length, 0);
-    if (sets.length > MAX_SETS || n > MAX_ITEMS) throw new Error(`セットは ${MAX_SETS}、カードは ${MAX_ITEMS} までです`);
+    if (sets.length > MAX_SETS || n > MAX_ITEMS) throw new Error(L(`セットは ${MAX_SETS}、カードは ${MAX_ITEMS} までです`, `Up to ${MAX_SETS} sets and ${MAX_ITEMS} cards`));
   }
 
   /* ---------- mode ---------- */
@@ -2907,8 +3091,8 @@
   search.addEventListener('input', render);
 
   document.getElementById('reset').addEventListener('click', () => {
-    if (!askConfirm(`セット「${activeSet().name}」のカードをすべて削除します。元に戻せません。よろしいですか？`)) return;
-    activeSet().items=[]; save(); render(); setStatus('このセットを空にしました');
+    if (!askConfirm(L(`セット「${activeSet().name}」のカードをすべて削除します。元に戻せません。よろしいですか？`, `Delete all cards in the set "${activeSet().name}"? This cannot be undone.`))) return;
+    activeSet().items=[]; save(); render(); setStatus(L('このセットを空にしました', 'This set is now empty'));
   });
 
   /* ---------- shortcuts: secret card copies PASSWORD by default ---------- */
@@ -2923,13 +3107,14 @@
     e.preventDefault();
     if (item.secret) {
       // Shift = ID、通常 = パスワード
-      if (e.shiftKey) copyText(item.user, idx, `${item.title||'ID'} の ID をコピー`);
-      else copyText(item.text, idx, `${item.title||'PW'} のパスワードをコピー`, true);
+      if (e.shiftKey) copyText(item.user, idx, L(`${item.title||'ID'} の ID をコピー`, `Copied the ID of ${item.title||'ID'}`));
+      else copyText(item.text, idx, L(`${item.title||'PW'} のパスワードをコピー`, `Copied the password of ${item.title||'PW'}`), true);
     } else {
       if (e.shiftKey) return;
-      copyText(item.text, idx, 'コピー ' + (item.text.length>40?item.text.slice(0,40)+'…':item.text));
+      copyText(item.text, idx, L('コピー ', 'Copied: ') + (item.text.length>40?item.text.slice(0,40)+'…':item.text));
     }
   });
 
+  applyStatic();   // V2.02.000〜 画面の部品を、いまの言葉に
   boot();
 </script>

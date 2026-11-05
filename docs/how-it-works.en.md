@@ -122,11 +122,18 @@ Backup file:
   - Each stash is identified by its ciphertext `ct` (unique because the IV is random) and carries the tab it came from (`tab`, random per page load) and a per-tab number (`seq`). Within one tab, newer means a higher `seq` (independent of the clock); across tabs, the time `at` is compared, and on a tie this tab's stash wins. Only the restored or discarded stash, and earlier stashes from the same tab, are deleted; stashes from other tabs are kept and offered later (2.01.009+, 2.01.010+).
   - In browsers without Web Locks, the stash is kept only inside the tab and never written to storage (2.01.011+).
 
+## Screen language (2.02.000+)
+
+- On-screen text is chosen with `L(japanese, english)` at the moment it is shown, so switching takes effect immediately. HTML elements keep their Japanese text and look up the English text in a fixed table (`EN_HTML`) by their `data-i` key. Only those fixed strings or the original Japanese are inserted — never file or user content.
+- The choice is stored in plain text as `snippet-book:lang` (`ja` or `en`); it is not secret. Without it, the browser language decides (Japanese for Japanese, English otherwise).
+- Storage format, file formats, encryption and tamper checks do not depend on the language. Files made on Japanese screens open on English screens and vice versa.
+- `tests/i18n-check.mjs` checks that no Japanese text is left without an English version (all script strings and HTML elements) and that each English text contains the same inserted values (names, counts) as the Japanese one.
+
 ## 7. Distribution
 
 - Served from `https://snippet.eiwa-up.jp/`. The nginx configuration is [`deploy/snippet.conf`](../deploy/snippet.conf).
 - The CSP is `default-src 'none'`, `script-src 'sha256-…'` (the hash of the single inline script), `style-src 'unsafe-inline'`, `font-src 'self'`, `img-src 'self' data:`, `connect-src 'none'`, `frame-ancestors 'none'`, and so on.
-  - Whenever the script changes, the CSP hash is updated too (`tests/test-v2111.mjs` checks that they match).
+  - Whenever the script changes, the CSP hash is updated too (`tests/test-v2200.mjs` checks that they match).
   - Inline styles are allowed (used for the look of on-screen elements).
 - Since 2.00.003 the font (IBM Plex Mono) is also served from the same site (`fonts/`). Nothing is loaded from other sites. Japanese text uses the fonts installed on the device.
 - A CSP does not stop following links or navigating away. Because "no traffic at all" cannot be claimed, we say "there is no mechanism that sends your entries out".

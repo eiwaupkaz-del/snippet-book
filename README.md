@@ -9,8 +9,9 @@
 よく使う文章・コマンド・ID やパスワードを登録しておき、クリック（スマホはタップ）だけでコピーできる道具です。
 
 - 使う：**https://snippet.eiwa-up.jp/**
-- マニュアル：[docs/manual-V2.01.011.pdf](docs/manual-V2.01.011.pdf)
-- 現行版：**Version 2.01.011**
+- マニュアル：[docs/manual-V2.02.000.pdf](docs/manual-V2.02.000.pdf)（英語：[docs/manual-en-V2.02.000.pdf](docs/manual-en-V2.02.000.pdf)）
+- 現行版：**Version 2.02.000**
+- 画面は日本語と英語（2.02.000〜。はじめはブラウザの言葉・ロック画面と鍵の設定で切りかえ）
 
 > A small, single-file web app to store and copy text snippets and credentials. Everything stays in your browser, encrypted with a random key that is wrapped by a passkey (WebAuthn PRF) and by a recovery key. There is no mechanism that sends your entries anywhere, and the page loads nothing from other sites. **English: [README.en.md](README.en.md)**
 
@@ -65,8 +66,8 @@
 
 | 版 | SHA-256（snippet-book.html） |
 |---|---|
+| Version 2.02.000 | `94b9f522820c557dd83a199b57bcf68922af768df8af2d925bcec20bab86df89` |
 | Version 2.01.011 | `2ce3268191bbf8158f3dbf30c63c290fa35cb533e5511e8465127692ef9757e1` |
-| Version 2.01.010 | `4946c2291a5c05dae61711e68cd433a6f5978af8a9c72be4cc1ec1efb3acd74d` |
 | Version 2.00.003 | `dae7fd31aedfdac2fd78f1da7458122d4157b29d4264ca21579e49d3cd37cd39` |
 
 アイコン・フォントなどほかのファイルの値は [`app/SHA256SUMS`](app/SHA256SUMS) にあります。
@@ -92,7 +93,7 @@ Invoke-WebRequest https://snippet.eiwa-up.jp/ -OutFile snippet-book.html; Get-Fi
 | `app/` | サイトで配っているファイルそのもの（HTML・アイコン・manifest・`fonts/`）と `SHA256SUMS` |
 | `deploy/snippet.conf` | サイトの nginx の設定（守りのヘッダーと CSP）。verify が、公開中のサイトの CSP と同じか確かめます |
 | `tests/test-core.mjs` | 鍵のしくみのテスト（HTML の中の `/*<core>` 〜 `/*</core>*/` を切り出して試します） |
-| `tests/test-v2111.mjs` | 自動パスワードの強さ・外のサイトを読まないこと・CSP のハッシュが HTML と合うこと・取り込みの検査・自動ロックとクリップボード・ロックで画面に中身を残さないこと・途中でロックしたら何もしないこと（鍵の作業も）・データと鍵を1回で書くこと・パスキーの一覧を合わせること・改ざんを見分ける印と履歴と保存先を選ぶことのテスト |
+| `tests/test-v2200.mjs`・`tests/i18n-check.mjs` | 英語の画面（日本語の文が英語なしで残っていないか・英語の文に同じ名前や件数が入るか・言葉の選び方）・自動パスワードの強さ・外のサイトを読まないこと・CSP のハッシュが HTML と合うこと・取り込みの検査・自動ロックとクリップボード・ロックで画面に中身を残さないこと・途中でロックしたら何もしないこと（鍵の作業も）・データと鍵を1回で書くこと・パスキーの一覧を合わせること・改ざんを見分ける印と履歴と保存先を選ぶことのテスト |
 | `docs/` | マニュアル（PDF と元の HTML）・しくみの説明 |
 | `.github/workflows/verify.yml` | テストと、サイトとの照らし合わせ（1 時間に 1 回） |
 
@@ -102,7 +103,7 @@ Node.js 18 以降で：
 
 ```bash
 node tests/test-core.mjs
-node tests/test-v2111.mjs
+node tests/test-v2200.mjs
 ```
 
 ## 問題を見つけたら

@@ -9,10 +9,10 @@
 A small tool for storing text you use often — commands, notes, IDs and passwords — and copying it with a single click (or tap on a phone).
 
 - Use it: **https://snippet.eiwa-up.jp/**
-- Manual (Japanese): [docs/manual-V2.01.011.pdf](docs/manual-V2.01.011.pdf)
-- Current version: **Version 2.01.011**
+- User guide (English): [docs/manual-en-V2.02.000.pdf](docs/manual-en-V2.02.000.pdf) — Japanese: [docs/manual-V2.02.000.pdf](docs/manual-V2.02.000.pdf)
+- Current version: **Version 2.02.000**
 
-> **Note:** the app's screens and the manual are in Japanese only. This page explains what the app does and how it protects your data.
+> **Language:** since Version 2.02.000 the app's screens are available in Japanese and English. The app follows your browser's language at first; you can switch with "日本語 | English" on the lock screen or under Language in the key settings.
 
 ---
 
@@ -58,8 +58,8 @@ For details, see [docs/how-it-works.en.md](docs/how-it-works.en.md) (Japanese: [
 
 | Version | SHA-256 (snippet-book.html) |
 |---|---|
+| Version 2.02.000 | `94b9f522820c557dd83a199b57bcf68922af768df8af2d925bcec20bab86df89` |
 | Version 2.01.011 | `2ce3268191bbf8158f3dbf30c63c290fa35cb533e5511e8465127692ef9757e1` |
-| Version 2.01.010 | `4946c2291a5c05dae61711e68cd433a6f5978af8a9c72be4cc1ec1efb3acd74d` |
 
 Values for the other files (icons, fonts, etc.) are in [`app/SHA256SUMS`](app/SHA256SUMS).
 
@@ -84,8 +84,8 @@ If the value matches the table, the app being served is the same as the one in t
 | `app/` | The exact files served by the site (HTML, icons, manifest, `fonts/`) and `SHA256SUMS` |
 | `deploy/snippet.conf` | The site's nginx configuration (security headers and CSP). verify checks that the live site's CSP matches it |
 | `tests/test-core.mjs` | Tests for the key handling (extracts the `/*<core>` … `/*</core>*/` part of the HTML and runs it) |
-| `tests/test-v2111.mjs` | Tests for the generated password strength, loading nothing from other sites, the CSP hash matching the HTML, import checks, auto-lock and clipboard, clearing the screen on lock, cancelling work interrupted by a lock, single-write storage, multi-tab safety, passkey list merging, tamper-evident backups and more |
-| `docs/` | Manual (PDF and source HTML, Japanese) and the technical description |
+| `tests/test-v2200.mjs`, `tests/i18n-check.mjs` | Tests for the English screens (no Japanese text left without an English version, the same names and counts in both languages, language selection), the generated password strength, loading nothing from other sites, the CSP hash matching the HTML, import checks, auto-lock and clipboard, clearing the screen on lock, cancelling work interrupted by a lock, single-write storage, multi-tab safety, passkey list merging, tamper-evident backups and more |
+| `docs/` | User guides (PDF and source HTML, Japanese and English) and the technical description |
 | `.github/workflows/verify.yml` | Tests and the hourly comparison with the live site |
 
 ## Running the tests
@@ -94,7 +94,7 @@ With Node.js 18 or later:
 
 ```bash
 node tests/test-core.mjs
-node tests/test-v2111.mjs
+node tests/test-v2200.mjs
 ```
 
 ## Reporting problems
